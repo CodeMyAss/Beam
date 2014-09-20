@@ -1,0 +1,7 @@
+name: Beam
+main: me.aventium.projectbeam.Beam
+version: ${version} | ${timestamp} | ${computerName}
+authors: [Aventium, MonsieurApple]
+description: ${description}
+commands:
+  restart:

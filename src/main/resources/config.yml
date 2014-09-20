@@ -1,0 +1,25 @@
+mongo:
+  addresses:
+    - localhost
+  database: unknown
+  server_id: nil
+  auth:
+    enabled: false
+    username: username
+    password: password
+  connections: 10
+
+groups:
+  scopes: []
+
+settings:
+  persistence:
+    enabled: true
+    profile: default
+  stats:
+    enabled: true
+
+tasks:
+  thread-count: 10
+bungee:
+  fallback-server-name: fallback
