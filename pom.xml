@@ -30,11 +30,11 @@
     <distributionManagement>
         <repository>
             <id>aventium-deployment</id>
-            <url>http://repo.aventium.me/nexus/content/repositories/releases-private</url>
+            <url>http://repo.aventium.me/content/repositories/releases-private</url>
         </repository>
         <snapshotRepository>
             <id>aventium-deployment</id>
-            <url>http://repo.aventium.me/nexus/content/repositories/snapshots-private</url>
+            <url>http://repo.aventium.me/content/repositories/snapshots-private</url>
         </snapshotRepository>
     </distributionManagement>
 
