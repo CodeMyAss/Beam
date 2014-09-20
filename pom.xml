@@ -38,6 +38,13 @@
         </snapshotRepository>
     </distributionManagement>
 
+    <repositories>
+        <repository>
+            <id>overcast</id>
+            <url>https://repo.oc.tc/content/groups/public</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <dependency>
             <groupId>tc.oc</groupId>
