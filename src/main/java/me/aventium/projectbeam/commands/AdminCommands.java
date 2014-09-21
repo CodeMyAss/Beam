@@ -1,5 +1,7 @@
 package me.aventium.projectbeam.commands;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 import com.sk89q.minecraft.util.commands.CommandContext;
 import com.sk89q.minecraft.util.commands.CommandException;
 import com.sk89q.minecraft.util.commands.CommandPermissions;
@@ -12,6 +14,7 @@ import me.aventium.projectbeam.collections.Users;
 import me.aventium.projectbeam.documents.DBGroup;
 import me.aventium.projectbeam.documents.DBServer;
 import me.aventium.projectbeam.documents.DBUser;
+import org.bson.types.ObjectId;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -20,6 +23,58 @@ import java.util.List;
 import java.util.Map;
 
 public class AdminCommands {
+
+    @com.sk89q.minecraft.util.commands.Command(
+            aliases = {"createserver"},
+            desc = "Create a new server in the database",
+            min = 4,
+            max = 4,
+            usage = "<name> <bungeecordname> <visibility> <family>"
+    )
+    public static void createServer(final CommandContext args, final CommandSender sender) throws CommandException {
+
+        if (!(sender instanceof Player)) throw new CommandException("You must be a player to use this command!");
+
+        if(!sender.isOp()) throw new CommandPermissionsException();
+
+        String name = args.getString(0);
+        String bungee_name = args.getString(1);
+        DBServer.Visibility vis = DBServer.Visibility.fromDatabase(args.getString(2).toLowerCase());
+
+        if(vis == null || vis.equals(DBServer.Visibility.UNKNOWN)) {
+            sender.sendMessage("§cInvalid visibility!");
+            StringBuilder sb = new StringBuilder();
+            sb.append("§aSupported visibilities: ");
+            for (DBServer.Visibility visibility : DBServer.Visibility.values()) {
+                if (!visibility.equals(DBServer.Visibility.UNKNOWN))
+                    sb.append("§l" + visibility.getDatabaseRepresentation() + "§r§a, ");
+            }
+
+            sender.sendMessage(sb.toString().trim().substring(0, sb.toString().length() - 2));
+            return;
+        }
+
+        String family = args.getString(3);
+
+        DBObject object = new BasicDBObject(DBServer.NAME_FIELD, name);
+        object.put(DBServer.BUNGEE_NAME_FIELD, bungee_name);
+        object.put(DBServer.VISIBILITY_FIELD, vis.getDatabaseRepresentation());
+        object.put(DBServer.SERVER_FAMILY_FIELD, family);
+
+        final DBServer server = new DBServer(object);
+        server.setId(ObjectId.get());
+
+        Database.getExecutorService().submit(new DatabaseCommand() {
+            @Override
+            public void run() {
+                Database.getCollection(Servers.class).save(server);
+            }
+        });
+
+        sender.sendMessage("§aCreated new server. Printing ObjectId to console and sending you it.");
+        sender.sendMessage("§aServer ObjectId: §2" + server.getId().toString());
+        System.out.println("New ObjectId for server: " + server.getId().toString());
+    }
 
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"setvis"},
@@ -116,18 +171,18 @@ public class AdminCommands {
 
         if (!(sender instanceof Player)) throw new CommandException("You must be a player to use this command!");
 
-        List<DBServer> servers = Database.getCollection(Servers.class).findPublicServers(args.getString(0));
+        final List<DBServer> servers = Database.getCollection(Servers.class).findPublicServers(args.getString(0));
 
         if(servers != null) {
             sender.sendMessage("§aRestarting " + servers.size() + " public servers in 30 seconds.");
-            for(final DBServer server : servers) {
-                Database.getExecutorService().submit(new DatabaseCommand() {
-                    @Override
-                    public void run() {
+            Database.getExecutorService().submit(new DatabaseCommand() {
+                @Override
+                public void run() {
+                    for(final DBServer server : servers) {
                         Database.getCollection(Servers.class).queueRestart(server.getServerId());
                     }
-                });
-            }
+                }
+            });
         }
     }
 

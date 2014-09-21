@@ -86,9 +86,12 @@ public class LobbyListener implements Listener {
             if(serverList.size() > 0) {
                 for(DBServer server : serverList) {
                     int position;
-                    try {
-                        position = Integer.parseInt(server.getBungeeName().toLowerCase().replace("lobby_", ""));
-                    } catch(NumberFormatException ex) {position = serverList.size();}
+                    if(server.getBungeeName().equalsIgnoreCase("lobby")) position = 0;
+                    else {
+                        try {
+                            position = Integer.parseInt(server.getBungeeName().toLowerCase().replace("lobby_", ""));
+                        } catch(NumberFormatException ex) {position = serverList.size();}
+                    }
 
                     sortedList.put(server.getName(), position);
                 }

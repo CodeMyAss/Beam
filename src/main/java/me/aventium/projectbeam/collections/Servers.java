@@ -74,13 +74,19 @@ public class Servers extends Collection {
 
     public List<DBServer> findPublicServers(@Nullable String family) {
 
-        if(family == null) return null;
-
-        BasicDBObjectBuilder query = BasicDBObjectBuilder.start()
-                .add(DBServer.SERVER_FAMILY_FIELD, Pattern.compile("^" + Pattern.quote(family), Pattern.CASE_INSENSITIVE))
-                .push(DBServer.VISIBILITY_FIELD)
-                .add("$in", ImmutableList.of(DBServer.Visibility.PUBLIC.getDatabaseRepresentation(), DBServer.Visibility.UNLISTED.getDatabaseRepresentation()))
-                .pop();
+        BasicDBObjectBuilder query;
+        if(family == null) {
+            query = BasicDBObjectBuilder.start()
+                    .push(DBServer.VISIBILITY_FIELD)
+                    .add("$in", ImmutableList.of(DBServer.Visibility.PUBLIC.getDatabaseRepresentation(), DBServer.Visibility.UNLISTED.getDatabaseRepresentation()))
+                    .pop();
+        } else {
+            query = BasicDBObjectBuilder.start()
+                    .add(DBServer.SERVER_FAMILY_FIELD, Pattern.compile("^" + Pattern.quote(family), Pattern.CASE_INSENSITIVE))
+                    .push(DBServer.VISIBILITY_FIELD)
+                    .add("$in", ImmutableList.of(DBServer.Visibility.PUBLIC.getDatabaseRepresentation(), DBServer.Visibility.UNLISTED.getDatabaseRepresentation()))
+                    .pop();
+        }
 
         DBObject sort = BasicDBObjectBuilder.start().add(DBServer.PRIORITY_FIELD, 1).add(DBServer.NAME_FIELD, 1).get();
 

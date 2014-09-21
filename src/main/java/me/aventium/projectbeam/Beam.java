@@ -154,7 +154,7 @@ public class Beam extends JavaPlugin {
         "\nFamily: " + Database.getServer().getFamily() +
         "\nVisibility: " + Database.getServer().getVisibility().toString());
 
-        new RestartChecker(this);
+        new RestartChecker(this).runTaskTimer(this, 20L, 20L);
     }
 
     public void onDisable() {

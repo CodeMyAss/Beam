@@ -1,10 +1,11 @@
 package me.aventium.projectbeam;
 
-import com.sk89q.minecraft.util.commands.ChatColor;
+import me.aventium.projectbeam.collections.Groups;
 import me.aventium.projectbeam.collections.Users;
 import me.aventium.projectbeam.commands.DatabaseCommand;
 import me.aventium.projectbeam.documents.DBGroup;
 import me.aventium.projectbeam.documents.DBUser;
+import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -62,6 +63,10 @@ public class PermissionsHandler implements Listener {
             @Override
             public void run() {
                 DBUser user = Database.getCollection(Users.class).findByName(event.getPlayer().getName());
+                if(user.getGroup() == null) {
+                    user.setGroup(Database.getCollection(Groups.class).getDefaultGroup());
+                    Database.getCollection(Users.class).save(user);
+                }
                 giveGroupPermissions(event.getPlayer(), user.getGroup());
             }
         });
@@ -71,7 +76,7 @@ public class PermissionsHandler implements Listener {
     @EventHandler
     public void onChat(AsyncPlayerChatEvent event) {
         DBUser user = Database.getCollection(Users.class).findByName(event.getPlayer().getName());
-        String prefix = ChatColor.translateAlternateColorCodes('&', user.getGroup().getPrefix());
+        String prefix = (user.getGroup() == null || user.getGroup().getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', user.getGroup().getPrefix()));
         event.setFormat(prefix + "%1$s§7> §r%2$s");
     }
 

@@ -1,10 +1,10 @@
 package me.aventium.projectbeam.commands;
 
+import com.google.common.collect.Lists;
 import com.sk89q.bukkit.util.BukkitWrappedCommandSender;
 import com.sk89q.minecraft.util.commands.Command;
 import com.sk89q.minecraft.util.commands.CommandContext;
 import com.sk89q.minecraft.util.commands.CommandException;
-import com.sk89q.minecraft.util.commands.CommandPermissions;
 import me.aventium.projectbeam.Beam;
 import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.channels.ChannelManager;
@@ -26,7 +26,6 @@ public class ServerCommands {
             desc = "Shows what server you are on",
             min = 0
     )
-    @CommandPermissions({"beam.server","beam.*"})
     public static void server(final CommandContext args, final CommandSender sender) throws CommandException {
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
@@ -73,7 +72,6 @@ public class ServerCommands {
             desc = "Connect to the lobby.",
             min = 0
     )
-    @CommandPermissions({"beam.lobby","beam.*"})
     public static void lobby(final CommandContext args, final CommandSender sender) throws CommandException {
         if(Database.getServer().getFamily() == null) {
             Database.getExecutorService().submit(new DatabaseCommand() {
@@ -113,13 +111,12 @@ public class ServerCommands {
             min = 0,
             max = 1
     )
-    @CommandPermissions({"beam.servers","beam.*"})
     public static void servers(final CommandContext args, final CommandSender sender) throws CommandException {
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
             public void run() {
-                Servers serversCollection = Database.getCollection(Servers.class);
-                final List<DBServer> servers = serversCollection.findPublicServers();
+                List<DBServer> servers = Database.getCollection(Servers.class).findPublicServers();
+                if(servers == null) servers =  Lists.newArrayList();
                 ChannelManager.getSyncChannel().queue(new SendServersInfo(sender, servers, args));
             }
         });
@@ -131,7 +128,6 @@ public class ServerCommands {
             usage = "",
             min = 0
     )
-    @CommandPermissions({"beam.authors","beam.*"})
     public static void authors(final CommandContext args, final CommandSender sender) throws CommandException {
         sender.sendMessage("§cDevelopers: §4Aventium§c, §4rbrick§c, §4Young_Explicit§c.");
     }
@@ -154,14 +150,16 @@ public class ServerCommands {
             final Map<String, DBServer> offline = new LinkedHashMap();
 
             for (DBServer server : this.servers) {
-                if(server.isOnline()) serverMapping.put(server.getName(), server);
-                else offline.put(server.getName(), server);
+                if(server != null) {
+                    if(server.isOnline() && !server.getVisibility().equals(DBServer.Visibility.UNLISTED)) serverMapping.put(server.getName(), server);
+                    else offline.put(server.getName(), server);
 
-                Integer count = playerMapping.get(server.getName());
-                if (count != null) {
-                    playerMapping.put(server.getName(), count + server.getOnlinePlayers().size());
-                } else {
-                    playerMapping.put(server.getName(), server.getOnlinePlayers().size());
+                    Integer count = playerMapping.get(server.getName());
+                    if (count != null) {
+                        playerMapping.put(server.getName(), count + server.getOnlinePlayers().size());
+                    } else {
+                        playerMapping.put(server.getName(), server.getOnlinePlayers().size());
+                    }
                 }
             }
 
