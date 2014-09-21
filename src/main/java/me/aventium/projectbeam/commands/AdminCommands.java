@@ -31,6 +31,7 @@ public class AdminCommands {
             max = 4,
             usage = "<name> <bungeecordname> <visibility> <family>"
     )
+    @CommandPermissions({"beam.createserver", "beam.*"})
     public static void createServer(final CommandContext args, final CommandSender sender) throws CommandException {
 
         if (!(sender instanceof Player)) throw new CommandException("You must be a player to use this command!");

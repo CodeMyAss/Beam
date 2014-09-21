@@ -93,9 +93,11 @@ public class ServerCommands {
             @Override
             public void run() {
                 List<DBServer> lobbies = Database.getCollection(Servers.class).findPublicServers("lobbies");
-                DBServer lowest = null;
-                for(DBServer server : lobbies) {
-                    if(server.getOnlinePlayers() == null || server.getOnlinePlayers().size() == 0 || server.getOnlinePlayers().size() < lowest.getOnlinePlayers().size() || lowest == null) lowest = server;
+                DBServer lowest = lobbies.get(0);
+                if(lobbies.size() > 1) {
+                    for(DBServer server : lobbies) {
+                        if(server.getOnlinePlayers() == null || server.getOnlinePlayers().size() == 0 || server.getOnlinePlayers().size() < lowest.getOnlinePlayers().size() || lowest == null) lowest = server;
+                    }
                 }
 
                 sender.sendMessage("§aTeleporting you to §2" + lowest.getName() + "§a!");

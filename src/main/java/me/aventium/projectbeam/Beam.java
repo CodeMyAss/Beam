@@ -227,15 +227,20 @@ public class Beam extends JavaPlugin {
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args) {
+        boolean ret = false;
         try {
             this.commands.execute(cmd.getName(), args, sender, sender);
+            ret = true;
         } catch (CommandPermissionsException e) {
             sender.sendMessage("§cYou do not have permission to do this.");
+            ret = false;
         } catch (MissingNestedCommandException e) {
             sender.sendMessage(ChatColor.RED + e.getUsage());
+            ret = false;
         } catch (CommandUsageException e) {
             sender.sendMessage(ChatColor.RED + e.getMessage());
             sender.sendMessage(ChatColor.RED + e.getUsage());
+            ret = false;
         } catch (WrappedCommandException e) {
             if (e.getCause() instanceof NumberFormatException) {
                 sender.sendMessage(ChatColor.RED + "Number expected, string received instead.");
@@ -243,11 +248,12 @@ public class Beam extends JavaPlugin {
                 sender.sendMessage(ChatColor.RED + "An error has occurred. See console.");
                 e.printStackTrace();
             }
+            ret = false;
         } catch (CommandException e) {
             sender.sendMessage(ChatColor.RED + e.getMessage());
+            ret = false;
         }
-
-        return true;
+        return ret;
     }
 
 }

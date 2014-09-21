@@ -12,13 +12,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-/**
- *
- * INDEXES:
- *
- *      db.users.ensureIndex({"nickname_lower": 1}, {sparse: true, unique: true})
- */
-
 @MongoCollection(collection = "users", database = "beam_users")
 public class Users extends Collection {
 

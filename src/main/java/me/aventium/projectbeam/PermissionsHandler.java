@@ -7,6 +7,7 @@ import me.aventium.projectbeam.documents.DBGroup;
 import me.aventium.projectbeam.documents.DBUser;
 import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -44,6 +45,14 @@ public class PermissionsHandler implements Listener {
         p.recalculatePermissions();
     }
 
+    public static void removeGroupPermissions(Permissible p) {
+        if(p.getEffectivePermissions() == null || p.getEffectivePermissions().size() == 0) return;
+        for(PermissionAttachmentInfo info : p.getEffectivePermissions()) {
+            if((info != null) && info.getPermission().contains("group.")) p.removeAttachment(info.getAttachment());
+        }
+        p.recalculatePermissions();
+    }
+
     public static void removeGroupPermissions(Permissible p, String groupName) {
         removeAttachmentByNode(p, "group." + groupName);
     }
@@ -57,17 +66,20 @@ public class PermissionsHandler implements Listener {
         return false;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(final PlayerJoinEvent event) {
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
             public void run() {
                 DBUser user = Database.getCollection(Users.class).findByName(event.getPlayer().getName());
-                if(user.getGroup() == null) {
-                    user.setGroup(Database.getCollection(Groups.class).getDefaultGroup());
-                    Database.getCollection(Users.class).save(user);
+                if(user != null) {
+                    if(user.getGroup() == null) {
+                        user.setGroup(Database.getCollection(Groups.class).getDefaultGroup());
+                        Database.getCollection(Users.class).save(user);
+                    }
+                    removeGroupPermissions(event.getPlayer(), user.getGroup().getName());
+                    giveGroupPermissions(event.getPlayer(), user.getGroup());
                 }
-                giveGroupPermissions(event.getPlayer(), user.getGroup());
             }
         });
 

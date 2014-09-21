@@ -163,7 +163,7 @@ public class SessionListener implements Listener {
         event.setJoinMessage(null);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.LOW)
     public void handleJoin(PlayerJoinEvent event) {
         startSession(event.getPlayer());
     }
