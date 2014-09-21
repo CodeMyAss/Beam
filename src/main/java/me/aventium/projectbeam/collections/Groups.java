@@ -1,21 +1,18 @@
 package me.aventium.projectbeam.collections;
 
 import com.mongodb.BasicDBObject;
-import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import me.aventium.projectbeam.documents.DBGroup;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 @MongoCollection(collection = "groups", database = "beam_groups")
 public class Groups extends Collection {
 
     public DBGroup findGroup(String groupName, List<String> scopes) {
-        BasicDBObjectBuilder querybuilder = BasicDBObjectBuilder.start().add(DBGroup.NAME_FIELD, Pattern.compile("^" + Pattern.quote(groupName), Pattern.CASE_INSENSITIVE));
-        DBObject query = querybuilder.get();
+        DBObject query = new BasicDBObject(DBGroup.NAME_LOWER_FIELD, groupName.toLowerCase());
         if (scopes != null && !scopes.isEmpty()) {
             query.put(DBGroup.SCOPE_FIELD, new BasicDBObject("$in", scopes));
         }

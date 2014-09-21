@@ -76,6 +76,12 @@ public class DBUser extends Document {
     }
 
     public DBGroup getGroup() {
+        String group = DBO.getString(this.dbo, GROUP_FIELD);
+        if(group == null) {
+            DBGroup defGroup = Database.getCollection(Groups.class).getDefaultGroup();
+            this.dbo.put(GROUP_FIELD, defGroup.getName());
+            return defGroup;
+        }
         return Database.getCollection(Groups.class).findGroup(DBO.getString(this.dbo, GROUP_FIELD), null);
     }
 

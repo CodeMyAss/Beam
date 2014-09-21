@@ -11,6 +11,7 @@ import java.util.Map;
 public class DBGroup extends Document {
 
     public static final String NAME_FIELD = "name";
+    public static final String NAME_LOWER_FIELD = "name_lower";
     public static final String PREFIX_FIELD = "prefix";
     public static final String PERMISSIONS_FIELD = "permissions";
     public static final String SCOPE_FIELD = "scope";
@@ -30,6 +31,11 @@ public class DBGroup extends Document {
 
     public void setName(String name) {
         this.dbo.put(NAME_FIELD, name);
+        this.dbo.put(NAME_LOWER_FIELD, name.toLowerCase());
+    }
+
+    public String getNameLower() {
+        return DBO.getString(this.dbo, NAME_LOWER_FIELD);
     }
 
     public String getPrefix() {
