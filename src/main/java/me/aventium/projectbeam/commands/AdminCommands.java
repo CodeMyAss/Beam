@@ -31,7 +31,6 @@ public class AdminCommands {
             max = 4,
             usage = "<name> <bungeecordname> <visibility> <family>"
     )
-    @CommandPermissions({"beam.createserver", "beam.*"})
     public static void createServer(final CommandContext args, final CommandSender sender) throws CommandException {
 
         if (!(sender instanceof Player)) throw new CommandException("You must be a player to use this command!");
@@ -211,14 +210,19 @@ public class AdminCommands {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"creategroup"},
             desc = "Create a new network permissions group",
-            min = 1,
-            usage = "<groupName>"
+            min = 2,
+            usage = "<groupName> <type>"
     )
     @CommandPermissions({"beam.permissions.creategroup","beat.permissions.*","beam.*"})
     public static void createGroup(final CommandContext args, final CommandSender sender) throws CommandException {
         if (!sender.hasPermission("beam.creategroup") && !sender.hasPermission("beam.*")) throw new CommandPermissionsException();
 
-        if (Database.getCollection(Groups.class).findGroup(args.getString(0), null) != null) {
+        if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
+            return;
+        }
+
+        if (Database.getCollection(Groups.class).findGroup(args.getString(0), (args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily()), null) != null) {
             sender.sendMessage("§cA group with that name already exists!");
             return;
         }
@@ -228,6 +232,7 @@ public class AdminCommands {
             public void run() {
                 DBGroup group = new DBGroup();
                 group.setName(args.getString(0));
+                group.setServerFamily(args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily());
                 Database.getCollection(Groups.class).save(group);
             }
         });
@@ -238,21 +243,25 @@ public class AdminCommands {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"setgroupprefix", "setgprefix"},
             desc = "Change a group's prefix",
-            min = 1,
-            max = 2,
-            usage = "<groupName> [prefix]"
+            min = 3,
+            usage = "<groupName> <grouptype> <prefix>"
     )
     @CommandPermissions({"beam.permissions.setgroupprefix","beat.permissions.*","beam.*"})
     public static void setGroupPrefix(final CommandContext args, final CommandSender sender) throws CommandException {
 
-        if (Database.getCollection(Groups.class).findGroup(args.getString(0), null) == null) {
+        if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
+            return;
+        }
+
+        if (Database.getCollection(Groups.class).findGroup(args.getString(0), (args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily()), null) == null) {
             sender.sendMessage("§cA group with that name does not exist!");
             return;
         }
 
-        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), null);
+        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily(), null);
 
-        if (args.argsLength() == 1) {
+        if (args.argsLength() == 2) {
             Database.getExecutorService().submit(new DatabaseCommand() {
                 @Override
                 public void run() {
@@ -262,16 +271,16 @@ public class AdminCommands {
             });
 
             sender.sendMessage("§2" + group.getName() + " §a's prefix set to '§r&f§a'.");
-        } else if (args.argsLength() == 2) {
+        } else if (args.argsLength() == 3) {
             Database.getExecutorService().submit(new DatabaseCommand() {
                 @Override
                 public void run() {
-                    group.setPrefix(args.getString(1));
+                    group.setPrefix(args.getString(2));
                     Database.getCollection(Groups.class).save(group);
                 }
             });
 
-            sender.sendMessage("§2" + group.getName() + "§a's prefix set to '§r" + args.getString(1) + "§a'.");
+            sender.sendMessage("§2" + group.getName() + "§a's prefix set to '§r" + args.getString(2) + "§a'.");
         }
     }
 
@@ -284,7 +293,7 @@ public class AdminCommands {
     @CommandPermissions({"beam.permissions.setdefaultgroup","beat.permissions.*","beam.*"})
     public static void setDefaultGroup(final CommandContext args, final CommandSender sender) throws CommandException {
 
-        if (Database.getCollection(Groups.class).findGroup(args.getString(0), null) == null) {
+        if (Database.getCollection(Groups.class).findGroup(args.getString(0), "network", null) == null) {
             sender.sendMessage("§cA group with that name does not exist!");
             return;
         }
@@ -299,7 +308,7 @@ public class AdminCommands {
             });
         }
 
-        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), null);
+        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), "network", null);
 
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
@@ -314,17 +323,41 @@ public class AdminCommands {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"getgroup"},
             desc = "Get a player's group",
-            min = 1,
-            usage = "<player>"
+            min = 2,
+            usage = "<player> <type>"
     )
     @CommandPermissions({"beam.permissions.checkplayergroup","beat.permissions.*","beam.*"})
     public static void getGroup(final CommandContext args, final CommandSender sender) throws CommandException {
+
+        if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
+            return;
+        }
 
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
             public void run() {
                 DBUser user = Database.getCollection(Users.class).findByName(args.getString(0));
-                sender.sendMessage("§2" + user.getUsername() + "§a's group: §2" + user.getGroup().getName() + "§a.");
+                if(args.getString(1).equalsIgnoreCase("network")) {
+                    DBGroup sg = null;
+                    for(DBGroup g : user.getGroups()) {
+                        if(g.getFamily().equalsIgnoreCase("network")) {
+                            sg = g;
+                            break;
+                        }
+                    }
+                    sender.sendMessage("§2" + user.getUsername() + "§a's group: §2" + sg.getName() + "§a.");
+                } else {
+                    DBGroup sg = null;
+                    for(DBGroup g : user.getGroups()) {
+                        if(g.getFamily().equalsIgnoreCase(Database.getServer().getFamily())) {
+                            sg = g;
+                            break;
+                        }
+                    }
+                    if(sg != null) sender.sendMessage("§2" + user.getUsername() + "§a's group: §2" + sg.getName() + "§a.");
+                    else sender.sendMessage("§2" +  user.getUsername() + " §adoes not have a group for this server!");
+                }
             }
         });
     }
@@ -332,14 +365,19 @@ public class AdminCommands {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"setgroup"},
             desc = "Set a player's group",
-            min = 2,
-            usage = "<player> <groupName>"
+            min = 3,
+            usage = "<player> <groupName> <grouptype>"
     )
     @CommandPermissions({"beam.permissions.setplayergroup","beam.permissions.*","beam.*"})
     public static void setGroup(final CommandContext args, final CommandSender sender) throws CommandException {
 
+        if(!args.getString(2).equalsIgnoreCase("server") && !args.getString(2).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
+            return;
+        }
+
         final DBUser user = Database.getCollection(Users.class).findByName(args.getString(0));
-        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(1), null);
+        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(1), args.getString(2).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily(), null);
 
         if (user == null) {
             sender.sendMessage("§cPlayer not found!");
@@ -347,22 +385,34 @@ public class AdminCommands {
         }
 
         if (group == null) {
+            Bukkit.broadcastMessage(args.getString(1) + ":" + Database.getServer().getFamily());
             sender.sendMessage("§cGroup not found!");
             return;
         }
 
-        final String oldGroup = user.getGroup().getName();
-
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
             public void run() {
-                user.setGroup(group);
+
+                DBGroup oldGroup = null;
+
+                for(DBGroup g : user.getGroups()) {
+                    if(args.getString(2).equalsIgnoreCase("network") && g.getFamily().equalsIgnoreCase("network")) {
+                        oldGroup = g;
+                        break;
+                    } else if(args.getString(2).equalsIgnoreCase("server") && g.getFamily().equalsIgnoreCase(Database.getServer().getFamily())) {
+                        oldGroup = g;
+                        break;
+                    }
+                }
+                if(oldGroup != null) user.removeGroup(oldGroup);
+                user.addGroup(group);
                 Database.getCollection(Users.class).save(user);
                 if (Bukkit.getPlayerExact(user.getUsername()) != null) {
-                    PermissionsHandler.removeGroupPermissions(Bukkit.getPlayerExact(user.getUsername()), oldGroup);
+                    if(oldGroup != null) PermissionsHandler.removeGroupPermissions(Bukkit.getPlayerExact(user.getUsername()), oldGroup.getName());
                     PermissionsHandler.giveGroupPermissions(Bukkit.getPlayerExact(user.getUsername()), group);
                 }
-                sender.sendMessage("§2" + user.getUsername() + "§a's group set to: §2" + user.getGroup().getName() + "§a.");
+                sender.sendMessage("§2" + user.getUsername() + "§a's group set to: §2" + group.getName() + "§a.");
             }
         });
     }
@@ -370,21 +420,25 @@ public class AdminCommands {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"addpermission", "addperm"},
             desc = "Add a permission to a group",
-            min = 2,
-            usage = "<groupName> <permission>"
+            min = 3,
+            usage = "<groupName> <grouptype> <permission>"
     )
     @CommandPermissions({"beam.permissions.addpermission","beat.permissions.*","beam.*"})
     public static void addPermission(final CommandContext args, final CommandSender sender) throws CommandException {
-        if (!sender.hasPermission("beam.addpermission") && !sender.hasPermission("beam.*")) throw new CommandPermissionsException();
 
-        if (Database.getCollection(Groups.class).findGroup(args.getString(0), null) == null) {
+        if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
+            return;
+        }
+
+        if (Database.getCollection(Groups.class).findGroup(args.getString(0), (args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily()), null) == null) {
             sender.sendMessage("§cA group with that name does not exist!");
             return;
         }
 
-        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), null);
+        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily(), null);
 
-        final String permission = args.getString(1);
+        final String permission = args.getString(2);
 
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
@@ -408,21 +462,25 @@ public class AdminCommands {
     @CommandPermissions({"beam.permissions.removepermission","beat.permissions.*","beam.*"})
     public static void removePermission(final CommandContext args, final CommandSender sender) throws CommandException {
 
-        if (!sender.hasPermission("beam.removepermission") && !sender.hasPermission("beam.*")) throw new CommandPermissionsException();
-
-        if (Database.getCollection(Groups.class).findGroup(args.getString(0), null) == null) {
-            sender.sendMessage("§cA group with that name does not exist!");
+        if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
             return;
         }
 
-        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), null);
+        if (Database.getCollection(Groups.class).findGroup(args.getString(0), (args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily()), null) == null) {
+            sender.sendMessage("§cA group with that name already exists!");
+            return;
+        }
 
-        final String permission = args.getString(1);
+        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily(), null);
+
+        final String permission = args.getString(2);
 
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
             public void run() {
                 if(!group.getPermissions().containsKey(permission)) {
+                    sender.sendMessage("§cThat group does not have that permission!");
                     return;
                 }
                 Map<String, Boolean> perms = group.getPermissions();
@@ -438,19 +496,22 @@ public class AdminCommands {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"getpermissions", "getperms"},
             desc = "Retrieve the list of a permissions each group has",
-            min = 1,
-            usage = "<groupName>"
+            min = 2,
+            usage = "<groupName> <grouptype>"
     )
     @CommandPermissions({"beam.permissions.getpermissions","beat.permissions.*","beam.*"})
     public static void getPermissions(final CommandContext args, final CommandSender sender) throws CommandException {
-        if (!sender.hasPermission("beam.getpermissions") && !sender.hasPermission("beam.*")) throw new CommandPermissionsException();
+        if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
+            sender.sendMessage("§cInvalid group type! Supported types are: network, server");
+            return;
+        }
 
-        if (Database.getCollection(Groups.class).findGroup(args.getString(0), null) == null) {
+        if (Database.getCollection(Groups.class).findGroup(args.getString(0), (args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily()), null) == null) {
             sender.sendMessage("§cA group with that name does not exist!");
             return;
         }
 
-        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), null);
+        final DBGroup group = Database.getCollection(Groups.class).findGroup(args.getString(0), args.getString(1).equalsIgnoreCase("network") ? "network" : Database.getServer().getFamily(), null);
 
         StringBuilder stringBuilder = new StringBuilder();
         for(String permission : group.getPermissions().keySet()) {

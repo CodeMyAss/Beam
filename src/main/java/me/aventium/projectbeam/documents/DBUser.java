@@ -7,7 +7,9 @@ import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.collections.Groups;
 import me.aventium.projectbeam.collections.Users;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 public class DBUser extends Document {
@@ -18,12 +20,19 @@ public class DBUser extends Document {
     public static final String SIGN_IN_COUNT_FIELD = "sign_in_count";
     public static final String LAST_SIGN_IN_DATE_FIELD = "last_sign_in_date";
     public static final String LAST_SIGN_IN_IP_FIELD = "last_sign_in_ip";
-    public static final String GROUP_FIELD = "group";
+    public static final String GROUPS_FIELD = "groups";
 
     public DBUser(String username) {
         super();
         this.setUsername(username);
-        this.setGroup(Database.getCollection(Users.class).find(new BasicDBObject(USERNAME_FIELD, username)) == null ? Database.getCollection(Groups.class).getDefaultGroup() : Database.getCollection(Users.class).find(new BasicDBObject(USERNAME_FIELD, username)).getGroup());
+        DBUser u = Database.getCollection(Users.class).find(new BasicDBObject(USERNAME_FIELD, username));
+        if(u == null || u.getGroups() == null || u.getGroups().size() == 0) {
+            this.addGroup(Database.getCollection(Groups.class).getDefaultGroup());
+        } else {
+            for(DBGroup g : u.getGroups()) {
+                this.addGroup(g);
+            }
+        }
     }
 
     public DBUser(DBObject dbo) {
@@ -75,18 +84,32 @@ public class DBUser extends Document {
         this.dbo.put(LAST_SIGN_IN_IP_FIELD, ip);
     }
 
-    public DBGroup getGroup() {
-        String group = DBO.getString(this.dbo, GROUP_FIELD);
-        if(group == null) {
-            DBGroup defGroup = Database.getCollection(Groups.class).getDefaultGroup();
-            this.dbo.put(GROUP_FIELD, defGroup.getName());
-            return defGroup;
+    public List<DBGroup> getGroups() {
+        List<DBGroup> list = new ArrayList<>();
+        for(String g : DBO.getStringList(this.dbo, GROUPS_FIELD)) {
+            DBGroup gr = Database.getCollection(Groups.class).findGroup(g.split(":")[0], g.split(":")[1], null);
+            if(gr != null) list.add(gr);
         }
-        return Database.getCollection(Groups.class).findGroup(DBO.getString(this.dbo, GROUP_FIELD), null);
+        return list;
     }
 
-    public void setGroup(DBGroup group) {
-        this.dbo.put(GROUP_FIELD, group.getName());
+    public void addGroup(DBGroup group) {
+        List<DBGroup> groups = getGroups();
+        List<String> sgroups = new ArrayList<>();
+        for(DBGroup gr : groups) {
+            sgroups.add(gr.getName() + ":" + gr.getFamily());
+        }
+        sgroups.add(group.getName() + ":" + group.getFamily());
+        this.dbo.put(GROUPS_FIELD, sgroups);
+    }
+
+    public void removeGroup(DBGroup group) {
+        List<String> sgroups = new ArrayList<>();
+        for(DBGroup g : getGroups()) {
+            if(!g.getName().equalsIgnoreCase(group.getName()) && !g.getFamily().equalsIgnoreCase(group.getFamily())) sgroups.add(g.getName() + ":" + g.getFamily());
+        }
+
+        this.dbo.put(GROUPS_FIELD, sgroups);
     }
 
 }

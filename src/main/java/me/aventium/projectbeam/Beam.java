@@ -10,6 +10,7 @@ import me.aventium.projectbeam.commands.ServerCommands;
 import me.aventium.projectbeam.commands.StaffCommands;
 import me.aventium.projectbeam.documents.DBGroup;
 import me.aventium.projectbeam.documents.DBServer;
+import me.aventium.projectbeam.documents.DBUser;
 import me.aventium.projectbeam.listeners.FallbackListener;
 import me.aventium.projectbeam.listeners.LobbyListener;
 import me.aventium.projectbeam.listeners.ServerListener;
@@ -24,6 +25,8 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.joda.time.Instant;
+import ru.tehkode.permissions.PermissionUser;
+import ru.tehkode.permissions.bukkit.PermissionsEx;
 
 public class Beam extends JavaPlugin {
 
@@ -138,16 +141,25 @@ public class Beam extends JavaPlugin {
             System.out.println("Registered as fallback server.");
         }
 
-        getServer().getScheduler().runTaskTimer(this, new Runnable() {
+        /*getServer().getScheduler().runTaskTimer(this, new Runnable() {
             @Override
             public void run() {
                 for(Player player : Bukkit.getOnlinePlayers()) {
-                    DBGroup group = Database.getCollection(Users.class).findByName(player.getName()).getGroup();
-                    PermissionsHandler.removeGroupPermissions(player, group.getName());
-                    PermissionsHandler.giveGroupPermissions(player, group);
+                    DBUser user = Database.getCollection(Users.class).findByName(player.getName());
+                    if(user != null) {
+                        if(user.getGroups() == null || user.getGroups().size() == 0) {
+                            user.addGroup(Database.getCollection(Groups.class).getDefaultGroup());
+                            Database.getCollection(Users.class).save(user);
+                        } else {
+                            for(DBGroup group : user.getGroups()) {
+                                PermissionsHandler.removeGroupPermissions(player, group.getName());
+                                PermissionsHandler.giveGroupPermissions(player, group);
+                            }
+                        }
+                    }
                 }
             }
-        }, 20 * 5L, 20 * 5L);
+        }, 20 * 5L, 20 * 5L);*/
 
         System.out.println("Finished initializing.\nRegistered with following credentials:\nServer Name: " + Database.getServer().getName() +
         "\nBungeeCord Server Name: " + Database.getServer().getBungeeName() +
@@ -155,6 +167,36 @@ public class Beam extends JavaPlugin {
         "\nVisibility: " + Database.getServer().getVisibility().toString());
 
         new RestartChecker(this).runTaskTimer(this, 20L, 20L);
+
+        getServer().getScheduler().runTaskLaterAsynchronously(this, new Runnable() {
+            @Override
+            public void run() {
+                if(!getConfig().getBoolean("pex.updated")) {
+                    for(PermissionUser u : PermissionsEx.getPermissionManager().getUsers()) {
+                        DBGroup hasPexGroup = null;
+
+                        if (u.getParents().get(0) != null) {
+                            if (Database.getCollection(Groups.class).findGroup(u.getParents().get(0).getName(), Database.getServer().getFamily(), null) != null) {
+                                hasPexGroup = Database.getCollection(Groups.class).findGroup(u.getParents().get(0).getName(), Database.getServer().getFamily(), null);
+                            }
+                        }
+
+                        DBUser user = Database.getCollection(Users.class).findByName(u.getName());
+
+
+                        if (user != null && hasPexGroup != null && !user.getGroups().contains(hasPexGroup)) {
+                            System.out.println("Giving previous rank to " + user.getUsername() + ": " + hasPexGroup.getName());
+                            user.addGroup(hasPexGroup);
+                            Database.getCollection(Users.class).save(user);
+                        }
+                    }
+
+                    getConfig().set("pex.updated", true);
+                    saveConfig();
+                    for(int i = 0; i < 20; i++) System.out.println("UPDATED PERMISSIONS");
+                }
+            }
+        }, 0L);
     }
 
     public void onDisable() {

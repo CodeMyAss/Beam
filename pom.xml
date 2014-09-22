@@ -43,6 +43,21 @@
             <id>overcast</id>
             <url>https://repo.oc.tc/content/groups/public</url>
         </repository>
+
+        <repository>
+            <id>kitteh</id>
+            <url>http://repo.kitteh.org/content/repositories/public/</url>
+        </repository>
+
+        <repository>
+            <id>pex-repo</id>
+            <url>http://pex-repo.zachsthings.com</url>
+        </repository>
+
+        <repository>
+            <id>gravity-repo</id>
+            <url>http://repo.gravitydevelopment.net/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -95,6 +110,20 @@
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>1.7</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.kitteh</groupId>
+            <artifactId>tagapi</artifactId>
+            <version>LATEST</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ru.tehkode</groupId>
+            <artifactId>PermissionsEx</artifactId>
+            <version>1.21.1</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
