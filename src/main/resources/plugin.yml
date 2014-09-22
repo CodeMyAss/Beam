@@ -5,3 +5,5 @@ author: Aventium
 description: ${description}
 commands:
   restart:
+  teleport:
+    aliases: [tp]

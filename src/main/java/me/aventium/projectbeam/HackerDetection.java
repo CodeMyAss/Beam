@@ -21,7 +21,7 @@ public class HackerDetection implements Listener {
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"hackdetection", "h"},
             desc = "Enter/leave hacker detection mode",
-            min = 1
+            min = 0
     )
     @CommandPermissions({"beam.hackerdetection","beam.*"})
     public static void hackerDetection(final CommandContext args, final CommandSender sender) throws CommandException {
