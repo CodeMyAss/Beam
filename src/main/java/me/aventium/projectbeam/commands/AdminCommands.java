@@ -385,7 +385,6 @@ public class AdminCommands {
         }
 
         if (group == null) {
-            Bukkit.broadcastMessage(args.getString(1) + ":" + Database.getServer().getFamily());
             sender.sendMessage("§cGroup not found!");
             return;
         }
@@ -423,8 +422,8 @@ public class AdminCommands {
             min = 3,
             usage = "<groupName> <grouptype> <permission>"
     )
-    @CommandPermissions({"beam.permissions.addpermission","beat.permissions.*","beam.*"})
-    public static void addPermission(final CommandContext args, final CommandSender sender) throws CommandException {
+     @CommandPermissions({"beam.permissions.addpermission","beat.permissions.*","beam.*"})
+     public static void addPermission(final CommandContext args, final CommandSender sender) throws CommandException {
 
         if(!args.getString(1).equalsIgnoreCase("server") && !args.getString(1).equalsIgnoreCase("network")) {
             sender.sendMessage("§cInvalid group type! Supported types are: network, server");
@@ -451,6 +450,28 @@ public class AdminCommands {
         });
 
         sender.sendMessage("§aPermission '§2" + permission + "§a' added to group §2" + group.getName() + "§a!");
+    }
+
+    @com.sk89q.minecraft.util.commands.Command(
+            aliases = {"addtoall"},
+            desc = "Add a permission to all group",
+            min = 1,
+            usage = "<permission>"
+    )
+    @CommandPermissions({"beam.permissions.addpermissiontoall","beat.permissions.*","beam.*"})
+    public static void addPermissionToAll(final CommandContext args, final CommandSender sender) throws CommandException {
+
+        for(DBGroup gr : Database.getCollection(Groups.class).findAllGroups()) {
+            if(gr.getFamily().equalsIgnoreCase(Database.getServer().getFamily())) {
+                boolean add = !args.getString(0).startsWith("-");
+                Map<String, Boolean> perm = gr.getPermissions();
+                perm.put(args.getString(0), add);
+                gr.setPermissions(perm);
+                Database.getCollection(Groups.class).save(gr);
+            }
+        }
+
+        sender.sendMessage("§aPermission added to all groups!");
     }
 
     @com.sk89q.minecraft.util.commands.Command(

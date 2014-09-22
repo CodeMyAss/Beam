@@ -147,7 +147,7 @@ public class SessionListener implements Listener {
     }
 
     // Update database
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onJoin(final PlayerJoinEvent event) {
         final String name = event.getPlayer().getName();
         final String ip = event.getPlayer().getAddress().getAddress().getHostAddress();

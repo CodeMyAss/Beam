@@ -4,20 +4,16 @@ import com.sk89q.bukkit.util.CommandsManagerRegistration;
 import com.sk89q.minecraft.util.commands.*;
 import me.aventium.projectbeam.channels.ChannelManager;
 import me.aventium.projectbeam.collections.*;
-import me.aventium.projectbeam.commands.AdminCommands;
-import me.aventium.projectbeam.commands.DatabaseCommand;
-import me.aventium.projectbeam.commands.ServerCommands;
-import me.aventium.projectbeam.commands.StaffCommands;
-import me.aventium.projectbeam.documents.DBGroup;
+import me.aventium.projectbeam.commands.*;
+import me.aventium.projectbeam.config.file.FileConfiguration;
+import me.aventium.projectbeam.config.file.YamlConfiguration;
 import me.aventium.projectbeam.documents.DBServer;
-import me.aventium.projectbeam.documents.DBUser;
 import me.aventium.projectbeam.listeners.FallbackListener;
 import me.aventium.projectbeam.listeners.LobbyListener;
 import me.aventium.projectbeam.listeners.ServerListener;
 import me.aventium.projectbeam.listeners.SessionListener;
 import me.aventium.projectbeam.tasks.PollingTaskManager;
 import me.aventium.projectbeam.tasks.RestartChecker;
-import org.bson.types.ObjectId;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -25,8 +21,9 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.joda.time.Instant;
-import ru.tehkode.permissions.PermissionUser;
-import ru.tehkode.permissions.bukkit.PermissionsEx;
+
+import java.io.File;
+import java.io.IOException;
 
 public class Beam extends JavaPlugin {
 
@@ -57,7 +54,9 @@ public class Beam extends JavaPlugin {
         return sessionListener;
     }
 
-    public Portal getPortal() { return portal; }
+    public Portal getPortal() {
+        return portal;
+    }
 
     public void onEnable() {
         instance = this;
@@ -66,13 +65,8 @@ public class Beam extends JavaPlugin {
 
         mainThread = Thread.currentThread();
 
-        if(!getDataFolder().exists()) {
-            getDataFolder().mkdir();
-            getConfig().options().copyDefaults(true);
-            saveConfig();
-            getConfig().set("mongo.server_id", ObjectId.get().toString());
-            saveConfig();
-        }
+        getConfig().options().copyDefaults(true);
+        saveConfig();
 
         Database.setUpExecutorService(10);
 
@@ -81,7 +75,7 @@ public class Beam extends JavaPlugin {
 
         try {
             Database.reconnect();
-        } catch(Throwable throwable) {
+        } catch (Throwable throwable) {
             throwable.printStackTrace();
         }
 
@@ -104,28 +98,33 @@ public class Beam extends JavaPlugin {
 
             // ensure that all sessions have terminated
             Database.getCollection(Sessions.class).updateEnds(Database.getServerId(), now);
-        } catch (Throwable t) {}
+        } catch (Throwable t) {
+        }
 
         portal = new Portal(this);
 
         // register commands
         registerCommands();
 
+        getServer().getPluginManager().registerEvents(new HackerDetection(), this);
+
         // clean up server info
         Database.getExecutorService().submit(new DatabaseCommand() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 Database.getCollection(Servers.class).cleanUp(Database.getServerId(), true);
             }
         });
 
         // update start time
         Database.getExecutorService().submit(new DatabaseCommand() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 Database.getCollection(Servers.class).updateStartTime(Database.getServerId(), now);
             }
         });
 
-        if(Database.getServer().getName().toLowerCase().contains("lobby") || Database.getServer().getName().toLowerCase().contains("hub")) {
+        if (Database.getServer().getName().toLowerCase().contains("lobby") || Database.getServer().getName().toLowerCase().contains("hub")) {
             getServer().getPluginManager().registerEvents(new LobbyListener(), this);
         }
 
@@ -136,7 +135,7 @@ public class Beam extends JavaPlugin {
         Database.registerCollection(new Punishments());
         Database.registerCollection(new Groups());
 
-        if(Database.getServer().getName().equals(Config.Bungee.fallbackServer())) {
+        if (Database.getServer().getName().equals(Config.Bungee.fallbackServer())) {
             getServer().getPluginManager().registerEvents(new FallbackListener(), this);
             System.out.println("Registered as fallback server.");
         }
@@ -162,38 +161,50 @@ public class Beam extends JavaPlugin {
         }, 20 * 5L, 20 * 5L);*/
 
         System.out.println("Finished initializing.\nRegistered with following credentials:\nServer Name: " + Database.getServer().getName() +
-        "\nBungeeCord Server Name: " + Database.getServer().getBungeeName() +
-        "\nFamily: " + Database.getServer().getFamily() +
-        "\nVisibility: " + Database.getServer().getVisibility().toString());
+                "\nBungeeCord Server Name: " + Database.getServer().getBungeeName() +
+                "\nFamily: " + Database.getServer().getFamily() +
+                "\nVisibility: " + Database.getServer().getVisibility().toString());
 
         new RestartChecker(this).runTaskTimer(this, 20L, 20L);
 
-        getServer().getScheduler().runTaskLaterAsynchronously(this, new Runnable() {
+        getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
             @Override
             public void run() {
-                if(!getConfig().getBoolean("pex.updated")) {
-                    for(PermissionUser u : PermissionsEx.getPermissionManager().getUsers()) {
-                        DBGroup hasPexGroup = null;
+                if (!getConfig().getBoolean("pex.updated")) {
+                    File file = new File(getDataFolder(), "permissions.yml");
+                    File newFile = new File(getDataFolder(), "newperms.yml");
 
-                        if (u.getParents().get(0) != null) {
-                            if (Database.getCollection(Groups.class).findGroup(u.getParents().get(0).getName(), Database.getServer().getFamily(), null) != null) {
-                                hasPexGroup = Database.getCollection(Groups.class).findGroup(u.getParents().get(0).getName(), Database.getServer().getFamily(), null);
-                            }
-                        }
-
-                        DBUser user = Database.getCollection(Users.class).findByName(u.getName());
-
-
-                        if (user != null && hasPexGroup != null && !user.getGroups().contains(hasPexGroup)) {
-                            System.out.println("Giving previous rank to " + user.getUsername() + ": " + hasPexGroup.getName());
-                            user.addGroup(hasPexGroup);
-                            Database.getCollection(Users.class).save(user);
+                    if (newFile.exists()) {
+                        try {
+                            newFile.createNewFile();
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
                         }
                     }
 
-                    getConfig().set("pex.updated", true);
-                    saveConfig();
-                    for(int i = 0; i < 20; i++) System.out.println("UPDATED PERMISSIONS");
+                    try {
+                        FileConfiguration old = YamlConfiguration.loadConfiguration(file);
+                        FileConfiguration neww = YamlConfiguration.loadConfiguration(newFile);
+                        for (String name : old.getConfigurationSection("users").getKeys(false)) {
+                            if(name != null && old.get(name) != null) {
+                                if (name.contains("-")) {
+                                    name = old.getString("users." + name + ".options.name");
+                                }
+                                neww.set(name, old.getStringList("users." + name + ".group").get(0));
+                                try {
+                                    neww.save(newFile);
+                                } catch (IOException ex) {
+                                    ex.printStackTrace();
+                                }
+                            }
+                        }
+
+                        getConfig().set("pex.updated", true);
+                        saveConfig();
+                        for (int i = 0; i < 20; i++) System.out.println("UPDATED PERMISSIONS");
+                    } catch(IllegalArgumentException ex) {
+                        ex.printStackTrace();
+                    }
                 }
             }
         }, 0L);
@@ -203,7 +214,7 @@ public class Beam extends JavaPlugin {
         final Instant now = Instant.now();
 
         // Update session ends
-        for(Player player : Bukkit.getOnlinePlayers()) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
             final String username = player.getName();
             Database.getExecutorService().submit(new DatabaseCommand() {
                 @Override
@@ -244,7 +255,7 @@ public class Beam extends JavaPlugin {
             done = false;
         }
 
-        if(!done) {
+        if (!done) {
             Bukkit.getLogger().severe("Failed to empty executor task queue in 5 seconds");
         }
 
@@ -265,6 +276,8 @@ public class Beam extends JavaPlugin {
         cmdRegister.register(ServerCommands.class);
         cmdRegister.register(AdminCommands.class);
         cmdRegister.register(StaffCommands.class);
+        cmdRegister.register(HackerDetection.class);
+        cmdRegister.register(BasicCommands.class);
     }
 
     @Override
