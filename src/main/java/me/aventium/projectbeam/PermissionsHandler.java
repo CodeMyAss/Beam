@@ -6,6 +6,8 @@ import me.aventium.projectbeam.commands.DatabaseCommand;
 import me.aventium.projectbeam.documents.DBGroup;
 import me.aventium.projectbeam.documents.DBUser;
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -16,9 +18,12 @@ import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.Plugin;
 import org.kitteh.tag.AsyncPlayerReceiveNameTagEvent;
-import ru.tehkode.permissions.bukkit.PermissionsEx;
 
-import java.util.*;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class PermissionsHandler implements Listener {
 
@@ -93,13 +98,19 @@ public class PermissionsHandler implements Listener {
                 }
                 DBGroup hasPexGroup = null;
 
-                String g = PermissionsEx.getPermissionManager().getUser(event.getPlayer()).getParentIdentifiers().get(0);
-                if (g != null) {
-                    if (Database.getCollection(Groups.class).findGroup(g, Database.getServer().getFamily(), null) != null) {
-                        hasPexGroup = Database.getCollection(Groups.class).findGroup(g, Database.getServer().getFamily(), null);
-                    }
-                }
+                File f = new File(Beam.getInstance().getDataFolder(), "permissions.yml");
+                FileConfiguration configuration = YamlConfiguration.loadConfiguration(f);
 
+                if(configuration.getConfigurationSection("users." + user.getUsername()) != null) {
+                    String g = configuration.getConfigurationSection("users." + user.getUsername()).getStringList("group").get(0);
+
+                    if (g != null) {
+                        if (Database.getCollection(Groups.class).findGroup(g, Database.getServer().getFamily(), null) != null) {
+                            hasPexGroup = Database.getCollection(Groups.class).findGroup(g, Database.getServer().getFamily(), null);
+                        }
+                    }
+
+                }
 
                 if (hasPexGroup != null && !user.getGroups().contains(hasPexGroup)) {
                     System.out.println("Giving previous rank to " + user.getUsername() + ": " + hasPexGroup.getName());
