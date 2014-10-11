@@ -12,6 +12,13 @@ public class Messages {
         return ban.toString();
     }
 
+    public static String generateBlacklistMessage(String reason) {
+        StringBuilder blacklist = new StringBuilder();
+        blacklist.append("§cYou have blacklisted.");
+        blacklist.append("\n§cReason: §4" + reason + "§c.");
+        return blacklist.toString();
+    }
+
     public static String generateMuteMessage(String reason, Date expiry) {
         StringBuilder mute = new StringBuilder();
         mute.append("§cYou have been muted for §4'" + reason + "'§c.");

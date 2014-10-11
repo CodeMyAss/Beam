@@ -1,14 +1,18 @@
 package me.aventium.projectbeam.commands;
 
+import com.mongodb.BasicDBObject;
 import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.collections.Servers;
+import me.aventium.projectbeam.collections.Users;
 import me.aventium.projectbeam.documents.DBPunishment;
+import me.aventium.projectbeam.documents.DBUser;
 import me.aventium.projectbeam.utils.TimeUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.UUID;
 
 public class ExecutePunishmentCommand implements Runnable {
 
@@ -28,7 +32,7 @@ public class ExecutePunishmentCommand implements Runnable {
 
     @Override
     public void run() {
-        Player player = Bukkit.getPlayerExact(this.punishment.getPlayer());
+        Player player = Bukkit.getPlayer(UUID.fromString(punishment.getPlayer()));
 
         StringBuilder broadcast = new StringBuilder();
 
@@ -61,7 +65,7 @@ public class ExecutePunishmentCommand implements Runnable {
                 break;
             case BAN:
                 for(Player online : Bukkit.getOnlinePlayers()) {
-                    online.sendMessage("§4" + this.punishment.getPlayer() + " §chas been " + (this.punishment.getExpiry() == null ? "permanently" : "temporarily") + " banned by §4" + this.punishment.getIssuer() + "§c.");
+                    online.sendMessage("§4" + Database.getCollection(Users.class).find(new BasicDBObject(DBUser.UUID_FIELD, punishment.getPlayer())).getUsername() + " §chas been " + (this.punishment.getExpiry() == null ? "permanently" : "temporarily") + " banned by §4" + this.punishment.getIssuer() + "§c.");
                 }
 
                 if(player != null) {
@@ -73,6 +77,21 @@ public class ExecutePunishmentCommand implements Runnable {
                 }
 
                 if(Bukkit.getPlayer(punishment.getIssuer()) != null) Bukkit.getPlayer(punishment.getIssuer()).sendMessage("§aPlayer banned.");
+
+                break;
+            case BLACKLIST:
+                for(Player online : Bukkit.getOnlinePlayers()) {
+                    online.sendMessage("§4" + Database.getCollection(Users.class).find(new BasicDBObject(DBUser.UUID_FIELD, punishment.getPlayer())).getUsername() + " §chas been blacklisted by §4" + this.punishment.getIssuer() + "§c.");
+                }
+
+                if(player != null) {
+                    StringBuilder ban = new StringBuilder();
+                    ban.append("§cYou have been §cblacklisted by §4" + this.punishment.getIssuer() + "§c.");
+                    ban.append("\n§cReason: §4" + this.punishment.getReason() + "§c.");
+                    player.kickPlayer(ban.toString());
+                }
+
+                if(Bukkit.getPlayer(punishment.getIssuer()) != null) Bukkit.getPlayer(punishment.getIssuer()).sendMessage("§aPlayer blacklisted.");
 
                 break;
         }

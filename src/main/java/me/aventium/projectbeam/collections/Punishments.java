@@ -11,6 +11,7 @@ import org.joda.time.Interval;
 
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @MongoCollection(collection = "punishments", database = "beam_punishments")
 public class Punishments extends Collection {
@@ -36,6 +37,24 @@ public class Punishments extends Collection {
         List<DBPunishment> result = Lists.newArrayList();
 
         DBUser user = Database.getCollection(Users.class).findByName(playerName);
+        if(user == null) return result;
+
+        DBObject query = new BasicDBObject();
+        query.put(DBPunishment.PLAYER_LOWER_FIELD, user.getUUID());
+        query.put(DBPunishment.ACTIVE_FIELD, true);
+
+        DBCursor cur = this.dbc().find(query).sort(new BasicDBObject(DBPunishment.CREATED_FIELD, -1)).setReadPreference(ReadPreference.primary());
+        while(cur.hasNext()) {
+            result.add(new DBPunishment(cur.next()));
+        }
+
+        return result;
+    }
+
+    public List<DBPunishment> getActivePunishments(UUID playerUUID) {
+        List<DBPunishment> result = Lists.newArrayList();
+
+        DBUser user = Database.getCollection(Users.class).find(new BasicDBObject(DBUser.UUID_FIELD, playerUUID.toString()));
         if(user == null) return result;
 
         DBObject query = new BasicDBObject();

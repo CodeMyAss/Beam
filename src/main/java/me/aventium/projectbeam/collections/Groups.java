@@ -12,6 +12,7 @@ import java.util.List;
 public class Groups extends Collection {
 
     public DBGroup findGroup(String groupName, List<String> scopes) {
+        if(groupName == null) return null;
         DBObject query = new BasicDBObject(DBGroup.NAME_LOWER_FIELD, groupName.toLowerCase());
         if (scopes != null && !scopes.isEmpty()) {
             query.put(DBGroup.SCOPE_FIELD, new BasicDBObject("$in", scopes));

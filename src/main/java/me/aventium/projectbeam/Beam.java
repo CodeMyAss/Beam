@@ -9,7 +9,7 @@ import me.aventium.projectbeam.commands.admin.*;
 import me.aventium.projectbeam.commands.player.AccountCommands;
 import me.aventium.projectbeam.commands.player.ServerCommands;
 import me.aventium.projectbeam.documents.DBServer;
-import me.aventium.projectbeam.friends.Friends;
+import me.aventium.projectbeam.listeners.PunishmentListener;
 import me.aventium.projectbeam.listeners.ServerListener;
 import me.aventium.projectbeam.listeners.SessionListener;
 import me.aventium.projectbeam.tasks.PollingTaskManager;
@@ -106,9 +106,6 @@ public class Beam extends JavaPlugin {
         getConfig().options().copyDefaults(true);
         saveConfig();
 
-        // Friends initialization
-        // Friends.init(new CommandsManagerRegistration(this, this.commands), pollingTaskManager);
-
         Database.setUpExecutorService(10);
 
         DatabaseConfiguration dbConf = new MongoConfigParser(getLogger()).parse(getConfig());
@@ -130,6 +127,7 @@ public class Beam extends JavaPlugin {
 
         this.sessionListener = new SessionListener();
         getServer().getPluginManager().registerEvents(this.sessionListener, this);
+        getServer().getPluginManager().registerEvents(new PunishmentListener(), this);
 
         getServer().getPluginManager().registerEvents(new PermissionsHandler(), this);
 
@@ -147,8 +145,6 @@ public class Beam extends JavaPlugin {
 
         // register commands
         registerCommands();
-
-        getServer().getPluginManager().registerEvents(new HackerDetection(), this);
 
         // clean up server info
         Database.getExecutorService().submit(new DatabaseCommand() {
@@ -239,7 +235,6 @@ public class Beam extends JavaPlugin {
         Database.registerCollection(new Users());
         Database.registerCollection(new Punishments());
         Database.registerCollection(new Groups());
-        Database.registerCollection(new Friendships());
     }
 
     private void registerCommands() {

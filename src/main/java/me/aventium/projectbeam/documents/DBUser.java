@@ -11,6 +11,7 @@ import me.aventium.projectbeam.collections.Users;
 import me.aventium.projectbeam.events.PlayerGroupChangeEvent;
 import org.bukkit.Bukkit;
 
+import javax.annotation.Nonnull;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.URL;
@@ -39,7 +40,7 @@ public class DBUser extends Document {
     public DBUser(UUID uuid, String username) {
         super();
         this.setUsername(username);
-        this.setUUID(uuid);
+        this.setUUID(uuid.toString());
         DBUser u = Database.getCollection(Users.class).find(new BasicDBObject(UUID_FIELD, uuid.toString()));
         if(u == null || u.getGroup() == null) {
             this.setDateJoined(new Date());
@@ -60,8 +61,8 @@ public class DBUser extends Document {
         return DBO.getString(this.dbo, USERNAME_LOWER_FIELD);
     }
 
-    public UUID getUUID() {
-        return UUID.fromString(DBO.getString(this.dbo, UUID_FIELD));
+    public @Nonnull String getUUID() {
+        return DBO.getString(this.dbo, UUID_FIELD);
     }
 
     public void setUsername(String username) {
@@ -69,8 +70,8 @@ public class DBUser extends Document {
         this.dbo.put(USERNAME_LOWER_FIELD, username.toLowerCase());
     }
 
-    public void setUUID(UUID uuid) {
-        this.dbo.put(UUID_FIELD, uuid.toString());
+    public void setUUID(String uuid) {
+        this.dbo.put(UUID_FIELD, uuid);
     }
 
     public Date getDateJoined() {

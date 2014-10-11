@@ -74,9 +74,14 @@ public class PermissionsHandler implements Listener {
 
     public static void removeGroupPermissions(Permissible p) {
         if (p == null || p.getEffectivePermissions() == null || p.getEffectivePermissions().size() == 0) return;
+        List<PermissionAttachment> toRemove = new ArrayList<>();
         for (PermissionAttachmentInfo info : p.getEffectivePermissions()) {
             if ((info != null) && info.getPermission().contains("beam.group."))
-                p.removeAttachment(info.getAttachment());
+                toRemove.add(info.getAttachment());
+        }
+
+        for(PermissionAttachment pa : toRemove) {
+            p.removeAttachment(pa);
         }
         p.recalculatePermissions();
     }
@@ -98,6 +103,7 @@ public class PermissionsHandler implements Listener {
     public void onGroupChange(PlayerGroupChangeEvent event) {
         if(Bukkit.getPlayer(event.getPlayer().getUsername()) != null) {
             Player player = Bukkit.getPlayer(event.getPlayer().getUsername());
+
             removeGroupPermissions(player);
             givePermissions(player, event.getPlayer());
 

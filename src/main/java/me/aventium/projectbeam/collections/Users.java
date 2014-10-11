@@ -3,6 +3,7 @@ package me.aventium.projectbeam.collections;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
+import com.mongodb.WriteResult;
 import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.documents.DBUser;
 import org.bukkit.entity.Player;
@@ -66,12 +67,13 @@ public class Users extends Collection {
         DBObject query = this.getNameQuery(username);
 
         DBUser user = new DBUser(uuid, username);
+        user.setUUID(uuid.toString());
         user.setLastSignInDate(new Date());
         user.setLastSignInIP(ip);
 
         DBObject update = new BasicDBObject();
         update.put("$set", user.getDBO());
-        if(Database.getCollection(Sessions.class).getLastSessionByUsername(username, true).getEnd() != null) update.put("$inc", new BasicDBObject(DBUser.SIGN_IN_COUNT_FIELD, 1));
+        update.put("$inc", new BasicDBObject(DBUser.SIGN_IN_COUNT_FIELD, 1));
 
         DBObject result = this.dbc().findAndModify(query, null, null, false, update, true, true);
 

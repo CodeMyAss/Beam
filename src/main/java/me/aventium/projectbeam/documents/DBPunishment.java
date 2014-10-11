@@ -4,6 +4,7 @@ import com.mongodb.DBObject;
 import me.aventium.projectbeam.DBO;
 import org.bson.types.ObjectId;
 
+import javax.annotation.Nullable;
 import java.util.Date;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ public class DBPunishment extends Document {
 
     public static final String PLAYER_FIELD = "player";
     public static final String PLAYER_LOWER_FIELD = "player_lower";
+    public static final String IP_ADDRESS_FIELD = "ip_address";
     public static final String SERVER_ID_FIELD = "server_id";
     public static final String ISSUER_FIELD = "issuer";
     public static final String TYPE_FIELD = "type";
@@ -31,12 +33,21 @@ public class DBPunishment extends Document {
         return DBO.getString(this.dbo, PLAYER_FIELD);
     }
 
-    public void setPlayer(UUID id) {
+    public void setPlayer(String id) {
         this.dbo.put(PLAYER_FIELD, id);
+        this.dbo.put(PLAYER_LOWER_FIELD, id.toLowerCase());
     }
 
     public String getPlayerLower() {
         return DBO.getString(this.dbo, PLAYER_LOWER_FIELD);
+    }
+
+    public @Nullable String getIPAddress() {
+        return DBO.getString(this.dbo, IP_ADDRESS_FIELD);
+    }
+
+    public void setIPAddress(String ip) {
+        this.dbo.put(IP_ADDRESS_FIELD, ip);
     }
 
     public ObjectId getServerId() {
@@ -105,7 +116,8 @@ public class DBPunishment extends Document {
         WARN("warn"),
         KICK("kick"),
         MUTE("mute"),
-        BAN("ban");
+        BAN("ban"),
+        BLACKLIST("blacklist");
 
         private final String dbVal;
 

@@ -1,8 +1,10 @@
 package me.aventium.projectbeam.utils;
 
 import me.aventium.projectbeam.Database;
+import me.aventium.projectbeam.collections.Users;
 import me.aventium.projectbeam.commands.FindPlayerCommand;
 import me.aventium.projectbeam.commands.PlayerCommand;
+import me.aventium.projectbeam.documents.DBUser;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -25,7 +27,8 @@ public class CommandUtils {
                 break;
             case 1:
                 Player player = players.get(0);
-                cmd.setUser(player, rawUsername);
+                DBUser user = Database.getCollection(Users.class).findByName(players.get(0).getName());
+                cmd.setUser(user);
                 Database.getExecutorService().submit(cmd);
                 break;
             default:

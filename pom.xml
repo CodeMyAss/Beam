@@ -43,16 +43,6 @@
             <id>overcast</id>
             <url>https://repo.oc.tc/content/groups/public</url>
         </repository>
-
-        <repository>
-            <id>kitteh</id>
-            <url>http://repo.kitteh.org/content/repositories/public/</url>
-        </repository>
-
-        <repository>
-            <id>labyrinth</id>
-            <url>http://repo.sacredlabyrinth.net:8081/artifactory/remote-repos/</url>
-        </repository>
     </repositories>
 
     <dependencies>
@@ -100,10 +90,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.kitteh</groupId>
-            <artifactId>tagapi</artifactId>
-            <version>LATEST</version>
-            <scope>provided</scope>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-mongodb</artifactId>
+            <version>1.6.0.RELEASE</version>
         </dependency>
     </dependencies>
 

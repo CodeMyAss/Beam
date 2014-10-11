@@ -255,11 +255,73 @@ public class PunishmentCommands {
         }
     }
 
+    @Command(
+            aliases = {"blacklist"},
+            desc = "Blacklist a player from the network globally",
+            min = 2,
+            usage = "<player> <reason>"
+    )
+    public static void blacklist(final CommandContext args, final CommandSender sender) throws CommandException {
+        String playerName = args.getString(0);
+
+        if(isBlacklisted(playerName)) {
+            sender.sendMessage("§cThat player is already banned!");
+            return;
+        }
+
+        final ObjectId serverId = Database.getServerId();
+
+        PlayerCommand command = createPunishmentCommand(sender, serverId, DBPunishment.Type.BLACKLIST, args.getJoinedStrings(1), null);
+
+        CommandUtils.matchSinglePlayer(command, sender, playerName);
+    }
+
     @com.sk89q.minecraft.util.commands.Command(
-            aliases = {"lookup", "look"},
-            desc = "Look up a player's record",
+            aliases = {"unblacklist"},
+            desc = "Remove a blacklist.",
             min = 1,
-            usage = "[-p] <player>",
+            usage = "<player>"
+    )
+    @CommandPermissions({"beam.unblacklist"})
+    public static void unblacklist(final CommandContext args, final CommandSender sender) throws CommandException {
+
+        String playerName = args.getString(0);
+
+        Punishments punishments = Database.getCollection(Punishments.class);
+
+        // check for bans
+        List<DBPunishment> activePunishments;
+        try {
+            activePunishments = punishments.getActivePunishments(playerName);
+        } catch (MongoException.Network e) {
+            sender.sendMessage("§4There was in internal error on our end, we're working to fix it, please check in later.");
+            return;
+        }
+
+        boolean unbanned = false;
+
+        for(DBPunishment punishment : activePunishments) {
+            if(punishment.getType() != DBPunishment.Type.BLACKLIST) {
+                break;
+            }
+
+            punishment.setActive(false);
+            punishments.save(punishment);
+            unbanned = true;
+        }
+
+        if(unbanned) {
+            sender.sendMessage("§2" + playerName + " §ahas been unblacklisted.");
+        } else {
+            sender.sendMessage("§4" + playerName + " §cis not currently blacklisted.");
+        }
+    }
+
+    @com.sk89q.minecraft.util.commands.Command(
+            aliases = {"lookup", "checkdb"},
+            desc = "Look up a player's record and punishments",
+            min = 1,
+            usage = "<player>",
             flags = "p"
     )
     @CommandPermissions("beam.lookup")
@@ -296,14 +358,18 @@ public class PunishmentCommands {
             }
 
             if(activePunishments != null && activePunishments.size() != 0) {
-                sender.sendMessage("§6§oType, Issuer, Reason, Date, Expires");
+                sender.sendMessage("§6§oType, Issuer, Reason, Date, Expires, Active");
                 for(DBPunishment punishment : activePunishments) {
-                    sender.sendMessage("§6" + punishment.getType().name() + ", " + punishment.getIssuer() + ", §o'" + punishment.getReason() + "'§6, " + punishment.getTimeCreated().toString() + ", " + (punishment.getExpiry() == null ? "Never" : (punishment.getExpiry().before(new Date()) ? "Expired" : punishment.getExpiry().toString())));
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("§6" + punishment.getType().name() + ", ");
+                    sb.append(punishment.getIssuer() + ", §o'");
+                    sb.append(punishment.getReason() + "'§6, ");
+                    sb.append(punishment.getTimeCreated().toString() + ", " + (punishment.getExpiry() == null ? "Never" : (punishment.getExpiry().before(new Date()) ? "Expired" : punishment.getExpiry().toString())) + ", ");
+                    sb.append((punishment.isActive() ? "Yes" : "No"));
+                    sender.sendMessage(sb.toString());
                 }
             }
         }
-
-
     }
 
     private static PlayerCommand createPunishmentCommand(final CommandSender issuer, final ObjectId serverId, final DBPunishment.Type type, final String reason, final DateTime expires) {
@@ -318,7 +384,8 @@ public class PunishmentCommands {
                 punishment.setTimeCreated(new Date());
                 if(expires != null) punishment.setExpiry(expires.toDate());
                 punishment.setIssuer(issuer.getName());
-                punishment.setPlayer(this.user.getUUID());
+                punishment.setPlayer(user.getUUID());
+                punishment.setIPAddress(user.getLastSignInIP());
                 punishment.setType(type);
 
                 Database.getCollection(Punishments.class).save(punishment);
@@ -339,6 +406,21 @@ public class PunishmentCommands {
         }
         for(DBPunishment punishment : activePunishments) {
             if(punishment.getType().equals(DBPunishment.Type.BAN)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isBlacklisted(String player) {
+        Punishments punishments = Database.getCollection(Punishments.class);
+        // check for bans
+        List<DBPunishment> activePunishments;
+        try {
+            activePunishments = punishments.getActivePunishments(player);
+        } catch (MongoException.Network e) {
+            return false;
+        }
+        for(DBPunishment punishment : activePunishments) {
+            if(punishment.getType().equals(DBPunishment.Type.BLACKLIST)) return true;
         }
         return false;
     }
