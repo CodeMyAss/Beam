@@ -4,7 +4,6 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import me.aventium.projectbeam.documents.DBGroup;
-import me.aventium.projectbeam.documents.Document;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,9 +11,8 @@ import java.util.List;
 @MongoCollection(collection = "groups", database = "beam_groups")
 public class Groups extends Collection {
 
-    public DBGroup findGroup(String groupName, String family, List<String> scopes) {
+    public DBGroup findGroup(String groupName, List<String> scopes) {
         DBObject query = new BasicDBObject(DBGroup.NAME_LOWER_FIELD, groupName.toLowerCase());
-        query.put(Document.SERVER_FAMILY_FIELD, family);
         if (scopes != null && !scopes.isEmpty()) {
             query.put(DBGroup.SCOPE_FIELD, new BasicDBObject("$in", scopes));
         }
@@ -42,7 +40,7 @@ public class Groups extends Collection {
         while(c.hasNext()) {
             DBObject obj = c.next();
             DBGroup group = new DBGroup(obj);
-            if(group.isDefaultGroup() && group.getFamily().equalsIgnoreCase("network")) return group;
+            if(group.isDefaultGroup()) return group;
         }
         return null;
     }
@@ -52,7 +50,7 @@ public class Groups extends Collection {
         while(c.hasNext()) {
             DBObject obj = c.next();
             DBGroup group = new DBGroup(obj);
-            if(group.isDefaultGroup() && group.getFamily().equalsIgnoreCase(family)) return group;
+            if(group.isDefaultGroup()) return group;
         }
         return null;
     }

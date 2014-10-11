@@ -1,6 +1,7 @@
 # Maven generated files
 target
 *.jar
+dependency-reduced-pom.xml
 
 # Mac OSX generated files
 .DS_Store
@@ -14,16 +15,5 @@ target
 *~
 *.swp
 
-# XCode 3 and 4 generated files
-*.mode1
-*.mode1v3
-*.mode2v3
-*.perspective
-*.perspectivev3
-*.pbxuser
-*.xcworkspace
-xcuserdata
-*class
-
+# IntelliJ generated files
 .idea
-dependency-reduced-pom.xml

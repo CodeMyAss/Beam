@@ -12,7 +12,6 @@ public class DBGroup extends Document {
 
     public static final String NAME_FIELD = "name";
     public static final String NAME_LOWER_FIELD = "name_lower";
-    public static final String TYPE_FIELD = "type";
     public static final String PREFIX_FIELD = "prefix";
     public static final String PERMISSIONS_FIELD = "permissions";
     public static final String SCOPE_FIELD = "scope";
@@ -38,10 +37,6 @@ public class DBGroup extends Document {
     public String getNameLower() {
         return DBO.getString(this.dbo, NAME_LOWER_FIELD);
     }
-
-    public Type getType() { return Type.getFromDatabaseRepresentation(DBO.getString(this.dbo, TYPE_FIELD)); }
-
-    public void setType(Type type) { this.dbo.put(TYPE_FIELD, type.name().toLowerCase()); }
 
     public String getServer() { return DBO.getString(this.dbo, SERVER_FAMILY_FIELD); }
 

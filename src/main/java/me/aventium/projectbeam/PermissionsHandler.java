@@ -3,11 +3,12 @@ package me.aventium.projectbeam;
 import me.aventium.projectbeam.collections.Groups;
 import me.aventium.projectbeam.collections.Users;
 import me.aventium.projectbeam.commands.DatabaseCommand;
-import me.aventium.projectbeam.config.file.FileConfiguration;
-import me.aventium.projectbeam.config.file.YamlConfiguration;
 import me.aventium.projectbeam.documents.DBGroup;
 import me.aventium.projectbeam.documents.DBUser;
+import me.aventium.projectbeam.events.PlayerGroupChangeEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -17,10 +18,7 @@ import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.Plugin;
-import org.kitteh.tag.AsyncPlayerReceiveNameTagEvent;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,23 +47,33 @@ public class PermissionsHandler implements Listener {
         p.recalculatePermissions();
     }
 
-    public static void giveGroupPermissions(Permissible p, DBGroup group) {
+    public static void givePermissions(Permissible p, DBUser user) {
         PermissionAttachment attachment = p.addAttachment(Beam.getInstance());
 
         HashMap<String, Boolean> toGive = new HashMap<>();
+
+        DBGroup group = user.getGroup();
 
         for (String permission : group.getPermissions().keySet()) {
             toGive.put(permission, group.getPermissions().get(permission));
         }
         attachment.setPermission("beam.group." + group.getName(), true);
-        for (String pa : toGive.keySet()) {
-            attachment.setPermission(pa, toGive.get(pa));
+
+        for(String perm : user.getPermissions().keySet()) {
+            toGive.put(perm, user.getPermissions().get(perm));
+        }
+        for (Map.Entry<String, Boolean> entry : toGive.entrySet()) {
+            attachment.setPermission(entry.getKey(), entry.getValue());
         }
         p.recalculatePermissions();
     }
 
+    public static void givePlayerPermissions(Permissible p, DBUser user) {
+
+    }
+
     public static void removeGroupPermissions(Permissible p) {
-        if (p.getEffectivePermissions() == null || p.getEffectivePermissions().size() == 0) return;
+        if (p == null || p.getEffectivePermissions() == null || p.getEffectivePermissions().size() == 0) return;
         for (PermissionAttachmentInfo info : p.getEffectivePermissions()) {
             if ((info != null) && info.getPermission().contains("beam.group."))
                 p.removeAttachment(info.getAttachment());
@@ -86,59 +94,36 @@ public class PermissionsHandler implements Listener {
         return false;
     }
 
+    @EventHandler
+    public void onGroupChange(PlayerGroupChangeEvent event) {
+        if(Bukkit.getPlayer(event.getPlayer().getUsername()) != null) {
+            Player player = Bukkit.getPlayer(event.getPlayer().getUsername());
+            removeGroupPermissions(player);
+            givePermissions(player, event.getPlayer());
+
+            String prefix = (event.getNewGroup().getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', event.getNewGroup().getPrefix()));
+
+            final String n = prefix + player.getName();
+
+            player.setPlayerListName(n.length() >= 16 ? n.substring(0, 15) : n);
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(final PlayerJoinEvent event) {
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
             public void run() {
-                DBUser user = Database.getCollection(Users.class).findByName(event.getPlayer().getName());
-                if (user == null) {
-                    event.getPlayer().sendMessage("Please relog to fix your permissions for the first time.");
-                    return;
-                }
+                DBUser user = Database.getCollection(Users.class).findOrCreateByName(event.getPlayer().getName(), event.getPlayer().getUniqueId());
 
-                File file = new File(Beam.getInstance().getDataFolder(), "newperms.yml");
-                FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-                if(config.getString(event.getPlayer().getName()) != null) {
-                    user.addGroup(Database.getCollection(Groups.class).findGroup(config.getString(event.getPlayer().getName()), Database.getServer().getFamily(), null));
-                    Database.getCollection(Users.class).save(user);
-                    System.out.println("Gave " + event.getPlayer().getName() + " old rank: " + config.getString(event.getPlayer().getName()));
-                    try {
-                        config.save(file);
-                    } catch(IOException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-
-                DBGroup network = null;
-                DBGroup server = null;
+                DBGroup group = user.getGroup();
                 String prefix = "";
 
-                for (DBGroup group : user.getGroups()) {
-                    for(PermissionAttachmentInfo pai : event.getPlayer().getEffectivePermissions()) {
-                        if(pai.getAttachment() != null && event.getPlayer().hasPermission(pai.getPermission()))
-                            try {
-                                event.getPlayer().removeAttachment(pai.getAttachment());
-                            } catch(IllegalArgumentException ex) {}
-                    }
-                    giveGroupPermissions(event.getPlayer(), group);
-                }
+                givePermissions(event.getPlayer(), user);
 
-                for (DBGroup gg : user.getGroups()) {
-                    if (gg.getFamily().equalsIgnoreCase("network")) network = gg;
-                    else if (gg.getFamily().equalsIgnoreCase(Database.getServer().getFamily())) server = gg;
-                }
+                prefix = (group.getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', group.getPrefix()));
 
-                if (network != null && network != Database.getCollection(Groups.class).getDefaultGroup()) {
-                    prefix = network.getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', network.getPrefix());
-                }
-
-                if (server != null && server.getPrefix() != null) {
-                    prefix = server.getPrefix() == null ? (network.getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', network.getPrefix())): ChatColor.translateAlternateColorCodes('&', server.getPrefix());
-                }
-
-                String n = prefix + event.getPlayer().getName();
-                event.getPlayer().sendMessage("P: " + (n.length() >= 16 ? n.substring(0, 15) : n));
+                final String n = prefix + event.getPlayer().getName();
 
                 event.getPlayer().setPlayerListName(n.length() >= 16 ? n.substring(0, 15) : n);
             }
@@ -146,7 +131,7 @@ public class PermissionsHandler implements Listener {
 
     }
 
-    @EventHandler
+    /*@EventHandler
     public void onNT(final AsyncPlayerReceiveNameTagEvent event) {
         Database.getExecutorService().submit(new DatabaseCommand() {
             @Override
@@ -182,50 +167,20 @@ public class PermissionsHandler implements Listener {
                 }
             }
         });
-    }
+    }*/
 
     @EventHandler
     public void onChat(AsyncPlayerChatEvent event) {
         DBUser user = Database.getCollection(Users.class).findByName(event.getPlayer().getName());
 
-        DBGroup hasPexGroup = null;
+        DBGroup group = user.getGroup();
 
-        File f = new File(Beam.getInstance().getDataFolder(), "newperms");
-        FileConfiguration configuration = YamlConfiguration.loadConfiguration(f);
-
-        if(configuration.getString(user.getUsername()) != null) {
-            String g = configuration.getString(user.getUsername());
-
-            if (g != null) {
-                if (Database.getCollection(Groups.class).findGroup(g, Database.getServer().getFamily(), null) != null) {
-                    hasPexGroup = Database.getCollection(Groups.class).findGroup(g, Database.getServer().getFamily(), null);
-                }
-            }
-
-        }
-
-        if (hasPexGroup != null && !user.getGroups().contains(hasPexGroup)) {
-            System.out.println("Giving previous rank to " + user.getUsername() + ": " + hasPexGroup.getName());
-            user.addGroup(hasPexGroup);
-            Database.getCollection(Users.class).save(user);
-        }
-
-        DBGroup network = null;
-        DBGroup server = null;
-        for (DBGroup group : user.getGroups()) {
-            if (group.getFamily().equalsIgnoreCase("network")) network = group;
-            else if (group.getFamily().equalsIgnoreCase(Database.getServer().getFamily())) server = group;
-        }
+        if(group == null) group = Database.getCollection(Groups.class).getDefaultGroup();
 
         String prefix = null;
 
-        if (network != null && network != Database.getCollection(Groups.class).getDefaultGroup()) {
-            prefix = network.getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', network.getPrefix());
-        }
+        prefix = (group.getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', group.getPrefix()));
 
-        if (server != null && server.getPrefix() != null && prefix != null) {
-            prefix = server.getPrefix() == null ? network.getPrefix() == null ? ChatColor.translateAlternateColorCodes('&', "&f") : ChatColor.translateAlternateColorCodes('&', network.getPrefix()) : ChatColor.translateAlternateColorCodes('&', server.getPrefix());
-        }
         event.setFormat(prefix + "%1$s §7> §r%2$s");
     }
 

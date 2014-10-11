@@ -5,6 +5,7 @@ import me.aventium.projectbeam.DBO;
 import org.bson.types.ObjectId;
 
 import java.util.Date;
+import java.util.UUID;
 
 public class DBPunishment extends Document {
 
@@ -30,9 +31,8 @@ public class DBPunishment extends Document {
         return DBO.getString(this.dbo, PLAYER_FIELD);
     }
 
-    public void setPlayer(String username) {
-        this.dbo.put(PLAYER_FIELD, username);
-        this.dbo.put(PLAYER_LOWER_FIELD, username.toLowerCase());
+    public void setPlayer(UUID id) {
+        this.dbo.put(PLAYER_FIELD, id);
     }
 
     public String getPlayerLower() {

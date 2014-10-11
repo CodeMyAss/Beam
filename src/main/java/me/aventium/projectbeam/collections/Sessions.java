@@ -47,6 +47,18 @@ public class Sessions extends Collection {
         }
     }
 
+    public @Nullable DBSession getLastSessionById(String id) {
+        BasicDBObject query = new BasicDBObject(DBSession.USER_FIELD, id);
+
+        DBCursor result = this.dbc().find(query).sort(new BasicDBObject(DBSession.START_FIELD, -1)).limit(1);
+
+        if(result.size() > 0) {
+            return new DBSession(result.next());
+        } else {
+            return null;
+        }
+    }
+
     public List<DBSession> findSessionsStartingBetween(Interval interval) {
         return this.findSessionsStartingBetween(interval, null);
     }

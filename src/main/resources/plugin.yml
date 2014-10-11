@@ -4,6 +4,10 @@ version: ${version}
 author: Aventium
 description: ${description}
 commands:
-  restart:
-  teleport:
-    aliases: [tp]
+  ban:
+  tempban:
+  mute:
+  tempmute:
+  warn:
+  kick:
+  server:

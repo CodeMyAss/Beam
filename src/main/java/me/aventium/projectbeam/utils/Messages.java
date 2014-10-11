@@ -1,6 +1,4 @@
-package me.aventium.projectbeam;
-
-import me.aventium.projectbeam.utils.TimeUtils;
+package me.aventium.projectbeam.utils;
 
 import java.util.Date;
 

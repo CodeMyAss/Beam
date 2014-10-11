@@ -1,13 +1,15 @@
-package me.aventium.projectbeam.commands;
+package me.aventium.projectbeam.commands.admin;
 
 import com.mongodb.MongoException;
-import com.sk89q.minecraft.util.commands.CommandContext;
-import com.sk89q.minecraft.util.commands.CommandException;
-import com.sk89q.minecraft.util.commands.CommandPermissions;
+import com.sk89q.minecraft.util.commands.*;
 import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.channels.ChannelManager;
 import me.aventium.projectbeam.collections.Punishments;
+import me.aventium.projectbeam.collections.Users;
+import me.aventium.projectbeam.commands.ExecutePunishmentCommand;
+import me.aventium.projectbeam.commands.PlayerCommand;
 import me.aventium.projectbeam.documents.DBPunishment;
+import me.aventium.projectbeam.documents.DBUser;
 import me.aventium.projectbeam.utils.CommandUtils;
 import me.aventium.projectbeam.utils.TimeUtils;
 import org.bson.types.ObjectId;
@@ -17,7 +19,7 @@ import org.joda.time.DateTime;
 import java.util.Date;
 import java.util.List;
 
-public class StaffCommands {
+public class PunishmentCommands {
 
     @com.sk89q.minecraft.util.commands.Command(
             aliases = {"warn"},
@@ -25,7 +27,7 @@ public class StaffCommands {
             min = 2,
             usage = "<player> <reason>"
     )
-    @CommandPermissions({"beam.warn","beam.*"})
+    @CommandPermissions({"beam.warn"})
     public static void warn(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -43,7 +45,7 @@ public class StaffCommands {
             min = 2,
             usage = "<player> <reason>"
     )
-    @CommandPermissions({"beam.kick","beam.*"})
+    @CommandPermissions({"beam.kick"})
     public static void kick(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -61,7 +63,7 @@ public class StaffCommands {
             min = 2,
             usage = "<player> <reason>"
     )
-    @CommandPermissions({"beam.mute","beam.*"})
+    @CommandPermissions({"beam.mute"})
     public static void mute(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -84,7 +86,7 @@ public class StaffCommands {
             min = 3,
             usage = "<player> <time> <reason>"
     )
-    @CommandPermissions({"beam.mute","beam.*"})
+    @CommandPermissions({"beam.mute"})
     public static void tempmute(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -119,7 +121,7 @@ public class StaffCommands {
             min = 1,
             usage = "<player>"
     )
-    @CommandPermissions({"beam.unmute","beam.*"})
+    @CommandPermissions({"beam.unmute"})
     public static void unmute(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -160,7 +162,7 @@ public class StaffCommands {
             min = 2,
             usage = "<player> <reason>"
     )
-    @CommandPermissions({"beam.ban","beam.*"})
+    @CommandPermissions({"beam.ban"})
     public static void ban(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -183,7 +185,7 @@ public class StaffCommands {
             min = 3,
             usage = "<player> <time> <reason>"
     )
-    @CommandPermissions({"beam.ban","beam.*"})
+    @CommandPermissions({"beam.ban"})
     public static void tempban(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -218,7 +220,7 @@ public class StaffCommands {
             min = 1,
             usage = "<player>"
     )
-    @CommandPermissions({"beam.unban","beam.*"})
+    @CommandPermissions({"beam.unban"})
     public static void unban(final CommandContext args, final CommandSender sender) throws CommandException {
 
         String playerName = args.getString(0);
@@ -253,6 +255,57 @@ public class StaffCommands {
         }
     }
 
+    @com.sk89q.minecraft.util.commands.Command(
+            aliases = {"lookup", "look"},
+            desc = "Look up a player's record",
+            min = 1,
+            usage = "[-p] <player>",
+            flags = "p"
+    )
+    @CommandPermissions("beam.lookup")
+    public static void lookup(final CommandContext args, final CommandSender sender) throws CommandException {
+        String playerName = args.getString(0);
+
+        DBUser user = Database.getCollection(Users.class).findByName(playerName);
+
+        if(user == null) {
+            sender.sendMessage("§cPlayer not found!");
+            return;
+        }
+
+        boolean showPunishments = args.hasFlag('p');
+
+        if(!showPunishments) {
+            sender.sendMessage("§6Username: §f" + user.getUsername());
+            sender.sendMessage("§6UUID: §f" + user.getUUID().toString().replaceAll("-", ""));
+            sender.sendMessage("§6Last IP used: §f" + user.getLastSignInIP().replaceAll("/", ""));
+            sender.sendMessage("§6Join date: §f" + user.getDateJoined().toString());
+            sender.sendMessage("§6§oUse /lookup -p " + playerName + " to check punishments.");
+        } else {
+            sender.sendMessage("§6Punishments for §f" + user.getUsername());
+
+            Punishments punishments = Database.getCollection(Punishments.class);
+
+            // check for bans
+            List<DBPunishment> activePunishments;
+            try {
+                activePunishments = punishments.getPunishments(playerName);
+            } catch (MongoException.Network e) {
+                sender.sendMessage("§4There was in internal error on our end, we're working to fix it, please check in later.");
+                return;
+            }
+
+            if(activePunishments != null && activePunishments.size() != 0) {
+                sender.sendMessage("§6§oType, Issuer, Reason, Date, Expires");
+                for(DBPunishment punishment : activePunishments) {
+                    sender.sendMessage("§6" + punishment.getType().name() + ", " + punishment.getIssuer() + ", §o'" + punishment.getReason() + "'§6, " + punishment.getTimeCreated().toString() + ", " + (punishment.getExpiry() == null ? "Never" : (punishment.getExpiry().before(new Date()) ? "Expired" : punishment.getExpiry().toString())));
+                }
+            }
+        }
+
+
+    }
+
     private static PlayerCommand createPunishmentCommand(final CommandSender issuer, final ObjectId serverId, final DBPunishment.Type type, final String reason, final DateTime expires) {
         return new PlayerCommand() {
             @Override
@@ -265,7 +318,7 @@ public class StaffCommands {
                 punishment.setTimeCreated(new Date());
                 if(expires != null) punishment.setExpiry(expires.toDate());
                 punishment.setIssuer(issuer.getName());
-                punishment.setPlayer(this.username);
+                punishment.setPlayer(this.user.getUUID());
                 punishment.setType(type);
 
                 Database.getCollection(Punishments.class).save(punishment);

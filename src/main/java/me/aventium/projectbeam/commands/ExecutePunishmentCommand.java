@@ -36,6 +36,7 @@ public class ExecutePunishmentCommand implements Runnable {
             case WARN:
                 if(player != null) {
                     StringBuilder warn = new StringBuilder();
+                    if(Bukkit.getPlayer(punishment.getIssuer()) != null) Bukkit.getPlayer(punishment.getIssuer()).sendMessage("§aPlayer warned.");
                     warn.append("§cYou have been warned by §4" + this.punishment.getIssuer() + "§c.");
                     warn.append("\n§cReason: §4" + this.punishment.getReason() + "§c.");
                     warn.append("\n§cPlease read our rules at §4§lwww.breakmc.com/rules §cto ensure no misunderstandings.");
@@ -44,12 +45,14 @@ public class ExecutePunishmentCommand implements Runnable {
                 break;
             case KICK:
                 if(player != null) {
+                    if(Bukkit.getPlayer(punishment.getIssuer()) != null) Bukkit.getPlayer(punishment.getIssuer()).sendMessage("§aPlayer kicked.");
                     player.kickPlayer("§cYou have been kicked by §4" + this.punishment.getIssuer() + "§c\nReason: §4" + this.punishment.getReason() + "§c.");
                 }
                 break;
             case MUTE:
                 if(player != null) {
                     StringBuilder mute = new StringBuilder();
+                    if(Bukkit.getPlayer(punishment.getIssuer()) != null) Bukkit.getPlayer(punishment.getIssuer()).sendMessage("§aPlayer muted for " + TimeUtils.formatDateDiff(this.punishment.getExpiry().getTime()) + ".");
                     mute.append("§cYou have been muted by §4" + this.punishment.getIssuer() + " §cfor §4'" + this.punishment.getReason() + "'§c.");
                     if(this.punishment.getExpiry() != null) mute.append("\n§cYour mute will be lifted in §4" + TimeUtils.formatDateDiff(this.punishment.getExpiry().getTime()) + "§c.");
                     mute.append("\n§4Please read our rules at §lwww.breakmc.com/rules §4to ensure no misunderstandings.");
@@ -68,6 +71,9 @@ public class ExecutePunishmentCommand implements Runnable {
                     if(this.punishment.getExpiry() != null) ban.append("\n§cYour ban will be lifted in §4" + TimeUtils.formatDateDiff(this.punishment.getExpiry().getTime()) + "§c.");
                     player.kickPlayer(ban.toString());
                 }
+
+                if(Bukkit.getPlayer(punishment.getIssuer()) != null) Bukkit.getPlayer(punishment.getIssuer()).sendMessage("§aPlayer banned.");
+
                 break;
         }
     }

@@ -8,6 +8,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 
 import java.net.InetAddress;
+import java.util.UUID;
 
 public class AsyncUserPreLoginEvent extends Event {
 
@@ -20,7 +21,7 @@ public class AsyncUserPreLoginEvent extends Event {
 
     public DBUser getUser() {
         if(user == null) {
-            user = Database.getCollection(Users.class).findOrCreateByName(this.getName());
+            user = Database.getCollection(Users.class).findOrCreateByName(this.getName(), this.getUniqueId());
         }
         return user;
     }
@@ -42,6 +43,10 @@ public class AsyncUserPreLoginEvent extends Event {
     public void setKickMessage(String message) {cause.setKickMessage(message);}
 
     public String getName() {return cause.getName();}
+
+    public UUID getUniqueId() {
+        return cause.getUniqueId();
+    }
 
     public InetAddress getAddress() {return cause.getAddress();}
 

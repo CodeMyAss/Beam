@@ -25,7 +25,7 @@ public class FindPlayerCommand extends DatabaseCommand {
     public void run() {
         DBUser user = Database.getCollection(Users.class).findByName(this.username);
 
-        if(user != null && user.getSignInCount() > 0) {
+        if(user != null) {
             if(this.res != null) {
                 this.res.setUser(user);
                 this.res.execute();

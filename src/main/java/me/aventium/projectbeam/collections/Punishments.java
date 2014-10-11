@@ -2,7 +2,9 @@ package me.aventium.projectbeam.collections;
 
 import com.google.common.collect.Lists;
 import com.mongodb.*;
+import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.documents.DBPunishment;
+import me.aventium.projectbeam.documents.DBUser;
 import me.aventium.projectbeam.documents.Document;
 import me.aventium.projectbeam.utils.MongoUtils;
 import org.joda.time.Interval;
@@ -12,11 +14,32 @@ import java.util.List;
 
 @MongoCollection(collection = "punishments", database = "beam_punishments")
 public class Punishments extends Collection {
+
+    public List<DBPunishment> getPunishments(String playerName) {
+        List<DBPunishment> result = Lists.newArrayList();
+
+        DBUser user = Database.getCollection(Users.class).findByName(playerName);
+        if(user == null) return result;
+
+        DBObject query = new BasicDBObject();
+        query.put(DBPunishment.PLAYER_LOWER_FIELD, user.getUUID().toString());
+
+        DBCursor cur = this.dbc().find(query).sort(new BasicDBObject(DBPunishment.CREATED_FIELD, -1)).setReadPreference(ReadPreference.primary());
+        while(cur.hasNext()) {
+            result.add(new DBPunishment(cur.next()));
+        }
+
+        return result;
+    }
+
     public List<DBPunishment> getActivePunishments(String playerName) {
         List<DBPunishment> result = Lists.newArrayList();
 
+        DBUser user = Database.getCollection(Users.class).findByName(playerName);
+        if(user == null) return result;
+
         DBObject query = new BasicDBObject();
-        query.put(DBPunishment.PLAYER_LOWER_FIELD, playerName.toLowerCase());
+        query.put(DBPunishment.PLAYER_LOWER_FIELD, user.getUUID().toString());
         query.put(DBPunishment.ACTIVE_FIELD, true);
 
         DBCursor cur = this.dbc().find(query).sort(new BasicDBObject(DBPunishment.CREATED_FIELD, -1)).setReadPreference(ReadPreference.primary());

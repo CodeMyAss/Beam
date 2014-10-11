@@ -19,18 +19,22 @@ public class Users extends Collection {
         return new BasicDBObject(DBUser.USERNAME_LOWER_FIELD, username.toLowerCase());
     }
 
+    public BasicDBObject getEmailQuery(String email) {
+        return new BasicDBObject(DBUser.EMAIL_FIELD, email.toLowerCase());
+    }
+
     public DBUser find(DBObject query) {
         DBObject obj = this.dbc().findOne(query);
         return obj == null ? null : new DBUser(obj);
     }
 
-    public DBUser findOrCreateByName(String username) {
+    public DBUser findOrCreateByName(String username, UUID id) {
         DBUser user = this.find(this.getNameQuery(username));
-        return user != null ? user : new DBUser(username);
+        return user != null ? user : (id == null ? null : new DBUser(id, username));
     }
 
     public DBUser findOrCreate(Player player) {
-        return this.findOrCreateByName(player.getName());
+        return this.findOrCreateByName(player.getName(), player.getUniqueId());
     }
 
     public DBUser findByName(String name) {
@@ -54,11 +58,14 @@ public class Users extends Collection {
         return this.findMulti(query);
     }
 
+    public int usersWithEmail(String email) {
+        return (int) this.dbc().count(this.getEmailQuery(email));
+    }
+
     public DBUser handleLogin(String username, UUID uuid, String ip) {
         DBObject query = this.getNameQuery(username);
 
-        DBUser user = new DBUser(username);
-        user.setUUID(uuid);
+        DBUser user = new DBUser(uuid, username);
         user.setLastSignInDate(new Date());
         user.setLastSignInIP(ip);
 

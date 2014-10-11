@@ -1,4 +1,4 @@
-package me.aventium.projectbeam.commands;
+package me.aventium.projectbeam.commands.player;
 
 import com.google.common.collect.Lists;
 import com.sk89q.bukkit.util.BukkitWrappedCommandSender;
@@ -9,6 +9,7 @@ import me.aventium.projectbeam.Beam;
 import me.aventium.projectbeam.Database;
 import me.aventium.projectbeam.channels.ChannelManager;
 import me.aventium.projectbeam.collections.Servers;
+import me.aventium.projectbeam.commands.DatabaseCommand;
 import me.aventium.projectbeam.documents.DBServer;
 import me.aventium.projectbeam.utils.PrettyPaginatedResult;
 import org.bukkit.command.CommandSender;
@@ -93,6 +94,7 @@ public class ServerCommands {
             @Override
             public void run() {
                 List<DBServer> lobbies = Database.getCollection(Servers.class).findPublicServers("lobbies");
+                lobbies.addAll(Database.getCollection(Servers.class).findPublicServers("hubs"));
                 DBServer lowest = lobbies.get(0);
                 if(lobbies.size() > 1) {
                     for(DBServer server : lobbies) {
@@ -131,7 +133,7 @@ public class ServerCommands {
             min = 0
     )
     public static void authors(final CommandContext args, final CommandSender sender) throws CommandException {
-        sender.sendMessage("§cDevelopers: §4Aventium§c, §4rbrick§c, §4Young_Explicit§c.");
+        sender.sendMessage("§cAuthor: §4Aventium§c.");
     }
 
     public static class SendServersInfo implements Runnable {
@@ -149,11 +151,12 @@ public class ServerCommands {
         public void run() {
             final Map<String, Integer> playerMapping = new HashMap<String, Integer>();
             final Map<String, DBServer> serverMapping = new LinkedHashMap<String, DBServer>();
-            final Map<String, DBServer> offline = new LinkedHashMap();
+            final Map<String, DBServer> offline = new LinkedHashMap<>();
 
             for (DBServer server : this.servers) {
                 if(server != null) {
-                    if(server.isOnline() && !server.getVisibility().equals(DBServer.Visibility.UNLISTED)) serverMapping.put(server.getName(), server);
+                    if(server.getVisibility().equals(DBServer.Visibility.UNLISTED) && !recipient.hasPermission("beam.viewunlisted")) continue;
+                    if(server.isOnline()) serverMapping.put(server.getName(), server);
                     else offline.put(server.getName(), server);
 
                     Integer count = playerMapping.get(server.getName());

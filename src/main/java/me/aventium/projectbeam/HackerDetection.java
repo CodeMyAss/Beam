@@ -13,6 +13,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Experimental hacker detection mode for the hardcore family servers.
+ * @author Aventium
+ */
 public class HackerDetection implements Listener {
 
     public static List<String> inDetectionMode = new ArrayList<>();
@@ -41,11 +45,15 @@ public class HackerDetection implements Listener {
 
         if(join) {
             inDetectionMode.add(player.getName());
+            player.setAllowFlight(true);
+            player.setFlying(true);
             for(Player p : Bukkit.getOnlinePlayers()) {
                 if(!p.hasPermission("beam.hackerdetection") && !p.hasPermission("beam.*") && !p.isOp()) p.hidePlayer(player);
             }
         } else {
             inDetectionMode.remove(player.getName());
+            player.setFlying(false);
+            player.setAllowFlight(false);
             for(Player p : Bukkit.getOnlinePlayers()) {
                 p.showPlayer(player);
             }

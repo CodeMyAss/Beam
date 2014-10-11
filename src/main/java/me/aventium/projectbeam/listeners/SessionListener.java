@@ -1,8 +1,9 @@
 package me.aventium.projectbeam.listeners;
 
 import com.mongodb.MongoException;
+import me.aventium.projectbeam.Beam;
 import me.aventium.projectbeam.Database;
-import me.aventium.projectbeam.Messages;
+import me.aventium.projectbeam.utils.Messages;
 import me.aventium.projectbeam.collections.Punishments;
 import me.aventium.projectbeam.collections.Sessions;
 import me.aventium.projectbeam.collections.Users;
@@ -16,10 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
 import org.joda.time.Instant;
 
 import java.util.ArrayList;
@@ -37,6 +35,11 @@ public class SessionListener implements Listener {
     @EventHandler(priority = EventPriority.LOW)
     public void checkPunishments(final AsyncPlayerPreLoginEvent event) {
 
+        if(!Database.isConnected()) {
+            event.disallow(PlayerPreLoginEvent.Result.KICK_OTHER, Beam.INTERNAL_ERROR);
+            return;
+        }
+
         if(event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
             return;
         }
@@ -48,7 +51,7 @@ public class SessionListener implements Listener {
         try {
             activePunishments = punishments.getActivePunishments(event.getName());
         } catch (MongoException.Network e) {
-            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, "§4There was in internal error on our end, we're working to fix it, please check in later.");
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Beam.INTERNAL_ERROR);
             return;
         }
 
@@ -101,7 +104,7 @@ public class SessionListener implements Listener {
             activePunishments = punishments.getActivePunishments(event.getPlayer().getName());
         } catch (MongoException.Network e) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§4There was in internal error on our end, we're working to fix it, please check in later.");
+            event.getPlayer().sendMessage(Beam.INTERNAL_ERROR);
             return;
         }
 
@@ -170,7 +173,7 @@ public class SessionListener implements Listener {
 
     public void startSession(Player player) {
         DBSession session = new DBSession();
-        session.setUser(player.getName());
+        session.setUser(player.getUniqueId().toString());
         session.setServerId(Database.getServerId());
         session.setStart(new Date());
         session.setIPAddress(player.getAddress().getAddress().getHostAddress());
@@ -185,7 +188,7 @@ public class SessionListener implements Listener {
     }
 
     public void endSession(Player player) {
-        final String username = player.getName();
+        final String username = player.getUniqueId().toString();
         final Instant end = Instant.now();
 
         Database.getExecutorService().submit(new DatabaseCommand() {

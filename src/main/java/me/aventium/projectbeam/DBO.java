@@ -160,4 +160,14 @@ public class DBO {
         return null;
     }
 
+    public static @Nullable Date getDate(DBObject dbo, String field) {
+        Object value = dbo.get(field);
+        if(value != null) {
+            if(value instanceof Date) {
+                return (Date) value;
+            }
+        }
+        return null;
+    }
+
 }

@@ -4,16 +4,17 @@ import com.sk89q.bukkit.util.CommandsManagerRegistration;
 import com.sk89q.minecraft.util.commands.*;
 import me.aventium.projectbeam.channels.ChannelManager;
 import me.aventium.projectbeam.collections.*;
-import me.aventium.projectbeam.commands.*;
-import me.aventium.projectbeam.config.file.FileConfiguration;
-import me.aventium.projectbeam.config.file.YamlConfiguration;
+import me.aventium.projectbeam.commands.DatabaseCommand;
+import me.aventium.projectbeam.commands.admin.*;
+import me.aventium.projectbeam.commands.player.AccountCommands;
+import me.aventium.projectbeam.commands.player.ServerCommands;
 import me.aventium.projectbeam.documents.DBServer;
-import me.aventium.projectbeam.listeners.FallbackListener;
-import me.aventium.projectbeam.listeners.LobbyListener;
+import me.aventium.projectbeam.friends.Friends;
 import me.aventium.projectbeam.listeners.ServerListener;
 import me.aventium.projectbeam.listeners.SessionListener;
 import me.aventium.projectbeam.tasks.PollingTaskManager;
 import me.aventium.projectbeam.tasks.RestartChecker;
+import me.aventium.projectbeam.tutorial.TutorialManager;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -21,11 +22,42 @@ import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.joda.time.Instant;
+import org.ocpsoft.prettytime.PrettyTime;
+import org.ocpsoft.prettytime.TimeFormat;
+import org.ocpsoft.prettytime.TimeUnit;
+import org.ocpsoft.prettytime.format.SimpleTimeFormat;
+import org.ocpsoft.prettytime.units.JustNow;
 
-import java.io.File;
-import java.io.IOException;
+import java.util.List;
 
 public class Beam extends JavaPlugin {
+
+    public static final String INTERNAL_ERROR = "§4Sorry, but there was an internal server error.\nWe are working to resolve the issue, please check back soon.";
+
+    public static final PrettyTime TIME_FORMATTER;
+
+    static {
+        TIME_FORMATTER = new PrettyTime();
+        TIME_FORMATTER.removeUnit(JustNow.class);
+        TimeFormat format = new SimpleTimeFormat()
+                .setSingularName("a second")
+                .setPluralName("seconds")
+                .setFutureSuffix("from now")
+                .setPastSuffix("ago")
+                .setPattern("%u");
+        TIME_FORMATTER.registerUnit(new TimeUnit() {
+            @Override
+            public long getMillisPerUnit() {
+                return 1L;
+            }
+
+            @Override
+            public long getMaxQuantity() {
+                return 60000L;
+            }
+        }, format);
+    }
+
 
     private static Beam instance;
     private static Thread mainThread;
@@ -33,6 +65,12 @@ public class Beam extends JavaPlugin {
     private ServerListener serverListener;
     private SessionListener sessionListener;
     private Portal portal;
+
+    private TutorialManager tutorialManager;
+
+    public TutorialManager getTutorialManager() {
+        return tutorialManager;
+    }
 
     public static Beam getInstance() {
         return instance;
@@ -68,6 +106,9 @@ public class Beam extends JavaPlugin {
         getConfig().options().copyDefaults(true);
         saveConfig();
 
+        // Friends initialization
+        // Friends.init(new CommandsManagerRegistration(this, this.commands), pollingTaskManager);
+
         Database.setUpExecutorService(10);
 
         DatabaseConfiguration dbConf = new MongoConfigParser(getLogger()).parse(getConfig());
@@ -82,6 +123,7 @@ public class Beam extends JavaPlugin {
         // initialize channels
         ChannelManager.start(this);
 
+        tutorialManager = new TutorialManager(this);
 
         this.serverListener = new ServerListener();
         getServer().getPluginManager().registerEvents(this.serverListener, this);
@@ -124,41 +166,9 @@ public class Beam extends JavaPlugin {
             }
         });
 
-        if (Database.getServer().getName().toLowerCase().contains("lobby") || Database.getServer().getName().toLowerCase().contains("hub")) {
-            getServer().getPluginManager().registerEvents(new LobbyListener(), this);
-        }
-
         Database.getCollection(Servers.class).cacheAllServers();
 
-        Database.registerCollection(new Sessions());
-        Database.registerCollection(new Users());
-        Database.registerCollection(new Punishments());
-        Database.registerCollection(new Groups());
-
-        if (Database.getServer().getName().equals(Config.Bungee.fallbackServer())) {
-            getServer().getPluginManager().registerEvents(new FallbackListener(), this);
-            System.out.println("Registered as fallback server.");
-        }
-
-        /*getServer().getScheduler().runTaskTimer(this, new Runnable() {
-            @Override
-            public void run() {
-                for(Player player : Bukkit.getOnlinePlayers()) {
-                    DBUser user = Database.getCollection(Users.class).findByName(player.getName());
-                    if(user != null) {
-                        if(user.getGroups() == null || user.getGroups().size() == 0) {
-                            user.addGroup(Database.getCollection(Groups.class).getDefaultGroup());
-                            Database.getCollection(Users.class).save(user);
-                        } else {
-                            for(DBGroup group : user.getGroups()) {
-                                PermissionsHandler.removeGroupPermissions(player, group.getName());
-                                PermissionsHandler.giveGroupPermissions(player, group);
-                            }
-                        }
-                    }
-                }
-            }
-        }, 20 * 5L, 20 * 5L);*/
+        registerCollections();
 
         System.out.println("Finished initializing.\nRegistered with following credentials:\nServer Name: " + Database.getServer().getName() +
                 "\nBungeeCord Server Name: " + Database.getServer().getBungeeName() +
@@ -166,52 +176,13 @@ public class Beam extends JavaPlugin {
                 "\nVisibility: " + Database.getServer().getVisibility().toString());
 
         new RestartChecker(this).runTaskTimer(this, 20L, 20L);
-
-        getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-            @Override
-            public void run() {
-                if (!getConfig().getBoolean("pex.updated")) {
-                    File file = new File(getDataFolder(), "permissions.yml");
-                    File newFile = new File(getDataFolder(), "newperms.yml");
-
-                    if (newFile.exists()) {
-                        try {
-                            newFile.createNewFile();
-                        } catch (IOException ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-
-                    try {
-                        FileConfiguration old = YamlConfiguration.loadConfiguration(file);
-                        FileConfiguration neww = YamlConfiguration.loadConfiguration(newFile);
-                        for (String name : old.getConfigurationSection("users").getKeys(false)) {
-                            if(name != null && old.get(name) != null) {
-                                if (name.contains("-")) {
-                                    name = old.getString("users." + name + ".options.name");
-                                }
-                                neww.set(name, old.getStringList("users." + name + ".group").get(0));
-                                try {
-                                    neww.save(newFile);
-                                } catch (IOException ex) {
-                                    ex.printStackTrace();
-                                }
-                            }
-                        }
-
-                        getConfig().set("pex.updated", true);
-                        saveConfig();
-                        for (int i = 0; i < 20; i++) System.out.println("UPDATED PERMISSIONS");
-                    } catch(IllegalArgumentException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            }
-        }, 0L);
     }
 
     public void onDisable() {
         final Instant now = Instant.now();
+
+        List<DBServer> hubs = Database.getCollection(Servers.class).findPublicServers("hubs");
+        hubs.addAll(Database.getCollection(Servers.class).findPublicServers("lobbies"));
 
         // Update session ends
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -223,10 +194,9 @@ public class Beam extends JavaPlugin {
                 }
             });
 
-            DBServer server = Database.getCollection(Servers.class).findPublicServer(Config.Bungee.fallbackServer());
+            player.sendMessage("§cThe server you were previously on is restarting, please reconnect.");
 
-            player.kickPlayer("§cThe server you were previously has gone offline, please reconnect.");
-
+            portal.sendPlayerToServer(player, hubs.get(0).getBungeeName());
         }
 
         // Clean up server information
@@ -264,20 +234,34 @@ public class Beam extends JavaPlugin {
 
     private CommandsManager<CommandSender> commands;
 
+    private void registerCollections() {
+        Database.registerCollection(new Sessions());
+        Database.registerCollection(new Users());
+        Database.registerCollection(new Punishments());
+        Database.registerCollection(new Groups());
+        Database.registerCollection(new Friendships());
+    }
+
     private void registerCommands() {
         this.commands = new CommandsManager<CommandSender>() {
             @Override
             public boolean hasPermission(CommandSender sender, String perm) {
-                return sender instanceof ConsoleCommandSender || sender.hasPermission(perm);
+                return sender instanceof ConsoleCommandSender || sender.hasPermission(perm) || sender.hasPermission("*") || sender.hasPermission("beam.*") || sender.isOp();
             }
         };
 
         CommandsManagerRegistration cmdRegister = new CommandsManagerRegistration(this, this.commands);
+
+        // Player commands
         cmdRegister.register(ServerCommands.class);
-        cmdRegister.register(AdminCommands.class);
-        cmdRegister.register(StaffCommands.class);
-        cmdRegister.register(HackerDetection.class);
-        cmdRegister.register(BasicCommands.class);
+        cmdRegister.register(AccountCommands.class);
+
+        // Admin commands
+        cmdRegister.register(BasicAdminCommands.class);
+        cmdRegister.register(PermissionCommands.class);
+        cmdRegister.register(PunishmentCommands.class);
+        cmdRegister.register(ServerAdminCommands.class);
+        cmdRegister.register(AccountAdminCommands.class);
     }
 
     @Override
